@@ -1,0 +1,94 @@
+<html>
+    <head>
+        <title>CWRC Merge Test</title>
+        <link rel="stylesheet" type="text/css" href="./CWRCMerger.css"/>
+        <script src="./js/deployJava.js"></script>
+        <script src="./js/jquery-1.7.2.min.js"></script>
+        <script src="./js/knockout-2.1.0.js"></script>
+    </head>
+    <body>
+        <div class="pageBody">
+            <h1>
+                CWRC Data Reconciliation
+            </h1>
+            <form>
+                <div>
+                    <h2>Select Files</h2>
+
+                    <select id="fileType">
+                        <option value="AUTHOR" selected="selected">Author Files</option>
+                        <option value="TITLE">Title Files</option>
+                        <option value="ORGANIZATION">Organization Files</option>
+                    </select>
+
+                    <input id="fileInput" type="file" data-bind="disable: isMerging"/>
+
+                    <table id="filesTable">
+                        <thead>
+                        <th colspan="2">Files to Merge</th>
+                        </thead>
+                        <tbody>
+
+                        </tbody>
+                    </table>
+
+                    <div>
+                        <button onclick="cwrcMerge.mergeFiles($('#fileType').val());return false;" data-bind="disable: isMerging">Run Merge</button>
+                        <progress id="progressBar" max="100">
+                            <strong id="totalComplete"></strong>
+                        </progress>
+                    </div>
+                </div>
+                <div>
+                    <h2>Merging</h2>
+
+                    <table border="0" style="border-width: 0;">
+                        <tr>
+                            <td>
+                                <select id="mergeMatches" onchange="getPossibleMatch(selectedIndex)"></select>
+                            </td>
+                            <td>
+                                <select id="possibleMatches" onchange="setPossibleMatch(selectedIndex)"></select>
+                            </td>
+                        </tr>
+                        <tr style="text-align: left; vertical-align: text-top">
+                            <td>
+                                <div id="merges" readonly="readonly"></div>
+                            </td>
+                            <td>
+                                <div id="matches" readonly="readonly"></div>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="2">
+                                <section>
+                                    <button onclick='cwrcMerge.mergeEntity($("#mergeMatches option:selected").first().val(), $("#possibleMatches option:selected").first().val()); return false;'>Merge</button>
+                                    <button onclick='cwrcMerge.newEntity($("#mergeMatches option:selected").first().val());return false;'>New Entry</button>
+                                </section>
+                            </td>
+                        </tr>
+                    </table>
+                </div>
+
+                <table border="0" style="border-width: 0;">
+                    <tr>
+                        <td>
+                            <div>
+                                <h2>Status</h2>
+                                <textarea id="consoleOut" readonly="readonly"></textarea>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <h2>Report</h2>
+                                <textarea id="reportOut" readonly="readonly"></textarea>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </form>
+
+            <script src="./js/CWRCMerger.js"></script>
+        </div>
+    </body>
+</html>
