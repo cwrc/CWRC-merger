@@ -21,6 +21,7 @@ function CWRCMerger(id, updateFileTable){
     
         updateFileTable();
     
+        $("#progressBar").attr("value", 0);
         _this.viewModel.isMerging(false);
     };
         
@@ -45,7 +46,8 @@ function CWRCMerger(id, updateFileTable){
         
     this.mergeFiles = function(fileType){     
         _this.viewModel.isMerging(true);
-    
+        $("#progressBar").removeAttr("value");
+        
         var loading = _this.viewModel.files.length;
         var applet = $('#' + id)[0];
                 

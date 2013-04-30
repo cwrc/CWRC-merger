@@ -32,6 +32,16 @@ public abstract class CWRCMerger {
     private volatile Document doc;
     private volatile MergerController controller;
     private int completedEntities = 0;
+    private String mainNode = "cwrc";
+    private String entityNode = "entity";
+    
+    public String getMainNode(){
+        return mainNode;
+    }
+    
+    public String getEntityNode(){
+        return entityNode;
+    }
     
     public static NodeList emptyList = new NodeList(){
         public Node item(int i) {
@@ -42,11 +52,18 @@ public abstract class CWRCMerger {
             return 0;
         }
     };
-
+    
     public CWRCMerger() throws CWRCException {
+        this("cwrc", "entity");
+    }
+
+    public CWRCMerger(String mainNode, String entityNode) throws CWRCException {
+        this.mainNode = mainNode;
+        this.entityNode = entityNode;
+        
         try {
             doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
-            Element cwrc = doc.createElement("cwrc");
+            Element cwrc = doc.createElement(mainNode);
             doc.appendChild(cwrc);
         } catch (ParserConfigurationException ex) {
             throw new CWRCException(ex);
@@ -202,7 +219,7 @@ public abstract class CWRCMerger {
      * @throws CWRCException 
      */
     public void flushNodes(CWRCDataSource outData) throws CWRCException {
-        NodeList children = doc.getDocumentElement().getElementsByTagName("entity");
+        NodeList children = doc.getDocumentElement().getElementsByTagName(entityNode);
 
         for (int index = 0; index < children.getLength(); ++index) {
             outData.appendNode(children.item(index));

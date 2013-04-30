@@ -4,7 +4,6 @@ import java.io.InputStream;
 import java.io.StringWriter;
 import javax.xml.transform.Transformer;
 import javax.xml.transform.TransformerException;
-import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.stream.StreamResult;
 import javax.xml.transform.stream.StreamSource;
 import org.ualberta.arc.mergecwrc.CWRCException;

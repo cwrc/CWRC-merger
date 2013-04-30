@@ -20,6 +20,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import org.ualberta.arc.mergecwrc.CWRCException;
+import org.ualberta.arc.mergecwrc.merger.custom.TitleModsMerger;
 import org.w3c.dom.Document;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -27,20 +28,14 @@ import org.xml.sax.InputSource;
 import org.xml.sax.SAXException;
 
 /**
- * An xml file data source.
- * 
+ *
  * @author mpm1
  */
-public class CWRCFile extends CWRCDataSource{
+public class MODSFile extends CWRCDataSource{
     private volatile File file;
     private volatile Document doc;
-
-    /**
-     * @param fileName The name of the datasource file. If no file exists, then a new one will be created.
-     * 
-     * @throws CWRCException 
-     */
-    public CWRCFile(String fileName) throws CWRCException {
+    
+    public MODSFile(String fileName) throws CWRCException {
         loadFile(fileName);
     }
     
@@ -48,41 +43,18 @@ public class CWRCFile extends CWRCDataSource{
     public void triggerMerge(Node entity, String id){
         // We do not need to do anything in this data source.
     }
-
+    
     @Override
     public void appendNode(Node node) {
         Node entity = ((Document) doc).importNode(node, true);
         ((Document) doc).getDocumentElement().appendChild(entity);
     }
-
+    
     @Override
     public NodeList getAllEntities() {
-        return doc.getDocumentElement().getElementsByTagName("entity");
+        return doc.getDocumentElement().getElementsByTagName(TitleModsMerger.ENTITY_NODE);
     }
-
-    /*
-    @Override
-    public NodeList executeQuery(String query, VariableResolver resolver) throws CWRCException {
-        try {
-            XPathExpression expr = null;
-            if (resolver != null) {
-                XPath xpath = getFactory().newXPath();
-                xpath.setXPathVariableResolver(resolver);
-                expr = xpath.compile(query);
-            } else {
-                expr = CWRCFile.getExpression(query);
-            }
-
-            synchronized (doc) {
-                Object result = expr.evaluate(doc, XPathConstants.NODESET);
-
-                return (NodeList) result;
-            }
-        } catch (XPathExpressionException ex) {
-            throw new CWRCException(CWRCException.Error.QUERY_ERROR, ex);
-        }
-    }*/
-
+    
     /**
      * Writes the DOM information back to a file.
      * 
@@ -118,7 +90,7 @@ public class CWRCFile extends CWRCDataSource{
                 XMLStreamWriter out = XMLOutputFactory.newInstance().createXMLStreamWriter(new OutputStreamWriter(fileOut, "UTF-8"));
 
                 out.writeStartDocument();
-                out.writeStartElement("cwrc");
+                out.writeStartElement(TitleModsMerger.MAIN_NODE);
                 out.writeEndElement();
                 out.writeEndDocument();
 

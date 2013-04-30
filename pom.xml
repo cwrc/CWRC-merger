@@ -58,16 +58,16 @@
                 <artifactId>maven-jar-plugin</artifactId>
                 <executions>
                     <execution>
-                    <phase>package</phase>
-                    <goals>
-                        <goal>sign</goal>
-                    </goals>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>sign</goal>
+                        </goals>
                     </execution>
                 </executions>
                 <configuration>
                     <keystore>src/non-packaged-resources/cwrc.key</keystore>
-                    <alias>xxxxxx</alias>
-                    <storepass>xxxxxxx</storepass>
+                    <alias>cwrcreconcile</alias>
+                    <storepass>cwrc4pp</storepass>
                     <verify>true</verify>
                     <archive>
                         <manifest>
@@ -112,6 +112,17 @@
             <version>9.1.0.8</version>
             <classifier>dom</classifier>
         </dependency>
+        <dependency>
+            <groupId>xalan</groupId>
+            <artifactId>xalan</artifactId>
+            <version>2.7.1</version>
+        </dependency>
+        <dependency>
+            <groupId>xalan</groupId>
+            <artifactId>serializer</artifactId>
+            <version>2.7.1</version>
+        </dependency>
+            
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
