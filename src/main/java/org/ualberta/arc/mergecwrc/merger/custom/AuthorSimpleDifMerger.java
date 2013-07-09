@@ -13,6 +13,7 @@ import org.ualberta.arc.mergecwrc.io.CWRCDataSource;
 import org.ualberta.arc.mergecwrc.merger.CWRCMerger;
 import org.ualberta.arc.mergecwrc.merger.QueryResult;
 import org.ualberta.arc.mergecwrc.utils.ScoringUtil;
+import org.w3c.dom.Document;
 import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
@@ -333,9 +334,13 @@ public class AuthorSimpleDifMerger extends CWRCMerger {
 
         return (surFound + foreFound) / 2.0f;
     }
-
+    
     @Override
     public List<QueryResult> search(CWRCDataSource mainData, Element inputNode) throws CWRCException {
+            return search(mainData, inputNode, 10);
+    }
+
+    public List<QueryResult> search(CWRCDataSource mainData, Element inputNode, int searchLeft) throws CWRCException {
         try {
             Map<Node, QueryResult> results = new HashMap<Node, QueryResult>();
 
@@ -385,15 +390,198 @@ public class AuthorSimpleDifMerger extends CWRCMerger {
             output.addAll(results.values());
             return output;
         } catch (NullPointerException ex) {
-            System.err.println("Found null pointer exception. Attempting to re-search.");
-            return search(mainData, inputNode);
+            System.err.println("Found null pointer exception. Attempting to re-search. ");
+            if(searchLeft > 0){
+                return search(mainData, inputNode, searchLeft - 1);
+            }
+            
+            return Collections.EMPTY_LIST;
         }
     }
 
     @Override
-    public Node performMerge(QueryResult result, Element inputNode) throws CWRCException {
-        System.err.println("Merge not yet implemented.");
-        
-        return null;
+    public synchronized Node performMerge(QueryResult result, Element inputNode) throws CWRCException {
+        Element mainElement = (Element) result.getNode();
+        Element newElement = (Element) inputNode.getElementsByTagName("person").item(0);
+
+        mergeRecordInfo((Element) mainElement.getElementsByTagName("recordInfo").item(0), (Element) newElement.getElementsByTagName("recordInfo").item(0));
+        mergeIdentity((Element) mainElement.getElementsByTagName("identity").item(0), (Element) newElement.getElementsByTagName("identity").item(0));
+        mergeDescription((Element) mainElement.getElementsByTagName("description").item(0), (Element) newElement.getElementsByTagName("description").item(0));
+
+        return mainElement;
+    }
+    
+    private void mergeRecordInfo(Element mainElement, Element newElement) throws CWRCException {
+        Document doc = mainElement.getOwnerDocument();
+
+        String projectId = ((Element) getNode("originInfo/projectId", newElement)).getTextContent();
+        Element originInfo = (Element) mainElement.getElementsByTagName("originInfo").item(0);
+
+        NodeList list = this.getNodeList("originInfo[projectId = '" + projectId + "']", mainElement, null);
+
+        if (list.getLength() == 0) {
+            if (addCanwwr(projectId, mainElement)) {
+                Element newId = doc.createElement("projectId");
+                newId.setTextContent(projectId);
+
+                originInfo.appendChild(newId);
+            }
+        }
+
+        //Merge personType
+        NodeList personTypeList = getNodeList("personTypes/personType", newElement, null);
+
+        if (personTypeList.getLength() > 0) {
+            Element personTypes = checkAndAddElement(mainElement, "personTypes");
+
+            for (int index = 0; index < personTypeList.getLength(); ++index) {
+                if (!checkIfTextNodeMatch(personTypes.getElementsByTagName("personType"),
+                        personTypeList.item(index).getTextContent())) {
+                    Node node = doc.importNode(personTypeList.item(index), true);
+                    personTypes.appendChild(node);
+                }
+            }
+        }
+    }
+
+    private static boolean checkIfTextNodeMatch(NodeList list, String text) {
+        for (int index = 0; index < list.getLength(); ++index) {
+            if (StringUtils.equals(list.item(index).getTextContent(), text)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private void mergeIdentity(Element mainElement, Element newElement) throws CWRCException {
+        Document doc = mainElement.getOwnerDocument();
+
+        // Merge the varaints
+        NodeList variantList = getNodeList("variantForms/variant", newElement, null);
+
+        if (variantList.getLength() > 0) {
+            Element variants = checkAndAddElement(mainElement, "variantForms");
+            for (int index = 0; index < variantList.getLength(); ++index) {
+                if (addVariant(variants, (Element) variantList.item(index))) {
+                    Node variant = doc.importNode(variantList.item(index), true);
+                    variants.appendChild(variant);
+                }
+            }
+        }
+    }
+    
+    private boolean addVariant(Element variantForms, Element variant) throws CWRCException {
+        NodeList children = variant.getElementsByTagName("namePart");
+
+        String surname = null;
+        String forename = null;
+        for (int index = 0; index < children.getLength(); ++index) {
+            Element child = (Element) children.item(index);
+
+            if (StringUtils.equals(child.getAttribute("partType"), "surname")) {
+                surname = child.getTextContent();
+            } else {
+                forename = child.getTextContent();
+            }
+        }
+
+        NodeList variants = variantForms.getElementsByTagName("variant");
+
+        if (surname != null) {
+            for (int index = 0; index < variants.getLength(); ++index) {
+                boolean checkSur = false;
+                boolean checkFore = false;
+                Element checkVariant = (Element) variants.item(index);
+                NodeList nameParts = checkVariant.getElementsByTagName("namePart");
+
+                if (nameParts.getLength() == 2) {
+                    for (int nameIndex = 0; nameIndex < 2; ++nameIndex) {
+                        Element namePart = (Element) nameParts.item(nameIndex);
+                        String partType = namePart.getAttribute("partType");
+
+                        if (StringUtils.equals("surname", partType)) {
+                            checkSur = StringUtils.equals(surname, namePart.getTextContent());
+                        } else {
+                            checkFore = StringUtils.equals(forename, namePart.getTextContent());
+                        }
+                    }
+                }
+
+                if (checkSur && checkFore) {
+                    return false;
+                }
+            }
+        } else {
+            for (int index = 0; index < variants.getLength(); ++index) {
+                Element checkVariant = (Element) variants.item(index);
+                NodeList nameParts = checkVariant.getElementsByTagName("namePart");
+
+                if (nameParts.getLength() == 1) {
+                    Element namePart = (Element) nameParts.item(0);
+                    if (StringUtils.equals(forename, namePart.getTextContent())) {
+                        return false;
+                    }
+                }
+            }
+        }
+
+        return true;
+    }
+
+    private void mergeDescription(Element mainElement, Element newElement) throws CWRCException {
+        Document doc = mainElement.getOwnerDocument();
+
+        //Merge notes first
+        NodeList domList = getNodeList("descriptiveNotes/note", newElement, null);
+
+        if (domList.getLength() > 0) {
+            Element descriptiveNotes = checkAndAddElement(mainElement, "descriptiveNotes");
+
+            for (int index = 0; index < domList.getLength(); ++index) {
+                Node note = doc.importNode(domList.item(index), true);
+                descriptiveNotes.appendChild(note);
+            }
+        }
+
+        //Merge Exist Dates
+        domList = getNodeList("existDates/*", newElement, null);
+
+        if (domList.getLength() > 0) {
+            Element existDates = checkAndAddElement(mainElement, "existDates");
+
+            for (int index = 0; index < domList.getLength(); ++index) {
+                Node node = doc.importNode(domList.item(index), true);
+                existDates.appendChild(node);
+            }
+        }
+
+        // Merge occupations
+        domList = getNodeList("occupations/*", newElement, null);
+
+        if (domList.getLength() > 0) {
+            Element occupations = checkAndAddElement(mainElement, "occupations");
+
+            for (int index = 0; index < domList.getLength(); ++index) {
+                Node node = doc.importNode(domList.item(index), true);
+                occupations.appendChild(node);
+            }
+        }
+    }
+    
+    private boolean addCanwwr(String projectId, Element mainElement) throws CWRCException {
+        if (StringUtils.equals(projectId, "canwwr")) {
+            NodeList list = this.getNodeList("originInfo[projectId = 'ceww']", mainElement, null);
+
+            return list.getLength() == 0; // This means that we do not add the project id since a ceww one already exists.
+        } else if (StringUtils.equals(projectId, "ceww")) {
+            NodeList list = this.getNodeList("originInfo[projectId = 'canwwr']", mainElement, null);
+
+            for (int index = 0; index < list.getLength(); ++index) {
+                mainElement.removeChild(list.item(index)); // Remove any existing canwwr elements
+            }
+        }
+
+        return true;
     }
 }

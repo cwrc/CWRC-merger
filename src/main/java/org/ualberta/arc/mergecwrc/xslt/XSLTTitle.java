@@ -4,7 +4,6 @@ import java.io.IOException;
 import java.io.Reader;
 import java.io.StringReader;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.regex.Pattern;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -272,15 +271,58 @@ public class XSLTTitle {
         "works",
         "writing manual"
     };
+    private static final String[] series = new String[]{
+        "book",
+        "series",
+        "vol.",
+        "volume",
+        "trilogy",
+        "tetralogy",
+        "duology",
+        "sextet"
+    };
 
     static {
         roles.add("eds");
+    }
+    
+    private final List<String> titleList = new ArrayList<String>();
+
+    public String addToTitleList(String input) {
+        if (!titleList.contains(input)) {
+            titleList.add(input);
+        }
+
+        return input;
+    }
+
+    public NodeList getTitleList() throws Exception {
+        final Document doc =  DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+
+        return new NodeList() {
+
+            public Node item(int i) {
+                Element element = doc.createElement("title");
+                
+                element.setTextContent(titleList.get(i));
+                
+                return element;
+            }
+
+            public int getLength() {
+                return titleList.size();
+            }
+        };
     }
 
     public String getPlace(String input) {
         int index = input.indexOf(":");
 
-        return input.substring(0, index + 1);
+        if (index > -1) {
+            return input.substring(0, index);
+        }
+
+        return "";
     }
 
     // Functions for reading CEWW datra lines.
@@ -395,6 +437,7 @@ public class XSLTTitle {
                         }
 
                         title = new Title();
+                        builder.setLength(0);
                         break;
 
                     default:
@@ -415,18 +458,20 @@ public class XSLTTitle {
 
     // Functions for reading CanWWr files
     public NodeList extractCriticNames(String input) throws CWRCException {
-        String[] nameStrings = input.split(" and ");
+        //String[] nameStrings = input.split(" and ");
+        String[] nameStrings = {input};
         List<Name> names = new ArrayList<Name>();
 
         for (String nameString : nameStrings) {
             Name name = new Name();
-            name.setName(input);
+            name.setName(nameString);
 
             // Check if role is contained in the name
             for (String role : roles) {
                 if (nameString.endsWith(", " + role)) {
                     int index = nameString.lastIndexOf(",");
-                    name.setName(nameString.substring(0, index + 1));
+                    name.setName(nameString.substring(0, index));
+                    name.role = role;
                     break;
                 }
             }
@@ -438,10 +483,10 @@ public class XSLTTitle {
     }
 
     public static String removeItalic(String input) {
-        return input.replaceAll("\\&lt;/?i\\&gt;", "");
+        return input.replaceAll("(\\&lt;/?i\\&gt;)|(</?i>)", "");
     }
 
-    public NodeList groupByGenre(NodeList nodeList) throws ParserConfigurationException{
+    public NodeList groupByGenre(NodeList nodeList) throws ParserConfigurationException {
         final List<String> output = new ArrayList<String>();
 
         for (int i = 0; i < nodeList.getLength(); ++i) {
@@ -453,7 +498,7 @@ public class XSLTTitle {
         }
 
         final Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
-        
+
         return new NodeList() {
 
             public Node item(int i) {
@@ -575,13 +620,20 @@ public class XSLTTitle {
                     } catch (NumberFormatException ex) {
                     }
 
-                    for (String note : notes) {
-                        if (result.startsWith(note)) {
-                            title.addNote(result);
-                            return null;
+                    for (String seriesVal : series) {
+                        if (StringUtils.containsIgnoreCase(result, seriesVal)) {
+                            title.setSeries(true);
                         }
                     }
-                    return result;
+
+                    /*for (String note : notes) {
+                    if (result.startsWith(note)) {
+                    title.addNote(result);
+                    return null;
+                    }
+                    }*/
+                    title.addNote(result);
+                    return null;
 
 
                 default:
@@ -601,6 +653,7 @@ public class XSLTTitle {
     public static class Title {
 
         private String title;
+        private boolean series = false;
         private List<String> notes = new ArrayList<String>();
         private List<String> dates = new ArrayList<String>();
         private List<String> places = new ArrayList<String>();
@@ -612,6 +665,14 @@ public class XSLTTitle {
 
         public void setTitle(String title) {
             this.title = title;
+        }
+
+        public void setSeries(boolean series) {
+            this.series = series;
+        }
+
+        public boolean isSeries() {
+            return series;
         }
 
         public List<String> getNotes() {
@@ -656,6 +717,17 @@ public class XSLTTitle {
         }
         private List<Element> nodes;
 
+        private static String extractQuotations(String input) {
+            String checkVal = input.trim();
+
+            if ((checkVal.startsWith("'") && checkVal.endsWith("'"))
+                    || (checkVal.startsWith("\"") && checkVal.endsWith("\""))) {
+                checkVal = checkVal.substring(1, checkVal.length() - 1);
+            }
+
+            return checkVal;
+        }
+
         public TitleNodes(List<Title> titles) throws CWRCException {
             nodes = new ArrayList<Element>(titles.size());
 
@@ -678,12 +750,12 @@ public class XSLTTitle {
                 isAlternative = true;
 
                 Element element = doc.createElement("title");
-                element.setTextContent(title.title);
+                element.setTextContent(extractQuotations(title.title));
                 titleElement.appendChild(element);
 
                 // Check the genre level
                 element = doc.createElement("genre");
-                if (title.getTitle().toLowerCase().endsWith("series")) {
+                if (title.isSeries() || title.getTitle().toLowerCase().endsWith("series")) {
                     element.setTextContent("s");
                 } else if (checkGenre.matcher(title.getTitle()).matches()) {
                     element.setTextContent("a");

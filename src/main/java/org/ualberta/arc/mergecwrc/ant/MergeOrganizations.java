@@ -71,7 +71,7 @@ public class MergeOrganizations {
         try {
             List<InputStream> inFiles = getFileInputCollection();
             
-            CWRCMergerFactory factory = CWRCMergerFactory.getFactory(controller, MergeType.ORGANIZATION, report, inFiles, false);
+            CWRCMergerFactory factory = CWRCMergerFactory.getFactory(controller, MergeType.ORGANIZATION, report, inFiles, true);
             //(OrganizationMerger)factory.getMerger()).setReport(new MergeReport("Title Match Report", new FileOutputStream("match_report" + df.format(new Date()) + ".xml")));
             CWRCFile mainSrc = new CWRCFile("organization_cwrc.xml");
             

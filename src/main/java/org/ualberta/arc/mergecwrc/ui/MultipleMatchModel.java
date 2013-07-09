@@ -26,11 +26,13 @@ public class MultipleMatchModel {
     private boolean selected = false;
     private QueryResult selection = null;
     private List<SectionDiff> difference= null;
-
-    public MultipleMatchModel(String name, List<QueryResult> possibleMatches, Element inputNode) {
+    boolean layerIn;
+    
+    public MultipleMatchModel(String name, List<QueryResult> possibleMatches, Element inputNode, boolean layerIn) {
         this.possibleMatches = possibleMatches;
         this.name = name;
         this.inputNode = inputNode;
+        this.layerIn = layerIn;
     }
     
     public boolean isSelected(){
@@ -61,8 +63,11 @@ public class MultipleMatchModel {
             transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
 
             // This is done to allow an even comparison.
-            Node node = inputNode.getFirstChild();
+            Node node = layerIn ? inputNode.getFirstChild() : inputNode;
+            int index = 0;
             while(node != null && Node.ELEMENT_NODE != node.getNodeType()){
+                System.err.println(index + " Node Type: " + node.getNodeType());
+                ++index;
                 node = node.getNextSibling();
             }
             

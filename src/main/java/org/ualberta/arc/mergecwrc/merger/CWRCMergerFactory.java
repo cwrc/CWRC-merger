@@ -10,7 +10,7 @@ import org.ualberta.arc.mergecwrc.CWRCException;
 import org.ualberta.arc.mergecwrc.MergeReport;
 import org.ualberta.arc.mergecwrc.merger.custom.AuthorSimpleDifMerger;
 import org.ualberta.arc.mergecwrc.merger.custom.OrganizationMerger;
-import org.ualberta.arc.mergecwrc.merger.custom.TitleMerger;
+import org.ualberta.arc.mergecwrc.merger.custom.TitleModsMerger;
 import org.ualberta.arc.mergecwrc.ui.MergerController;
 import org.w3c.dom.Element;
 import org.w3c.dom.NodeList;
@@ -22,7 +22,7 @@ import org.w3c.dom.NodeList;
  */
 public class CWRCMergerFactory {
 
-    private static int MAX_THREADS = 1;
+    private static int MAX_THREADS = 10;
     private volatile CWRCMerger merger;
     private List<MergeThread> runningThreads = new ArrayList<MergeThread>(MAX_THREADS);
     private MergeReport report;
@@ -50,7 +50,7 @@ public class CWRCMergerFactory {
                 return new CWRCMergerFactory(controller, new AuthorSimpleDifMerger(), report, inputFiles, autoMerge);
 
             case TITLE:
-                return new CWRCMergerFactory(controller, new TitleMerger(report), report, inputFiles, autoMerge);
+                return new CWRCMergerFactory(controller, new TitleModsMerger(report), report, inputFiles, autoMerge);
 
             case ORGANIZATION:
                 return new CWRCMergerFactory(controller, new OrganizationMerger(report), report, inputFiles, autoMerge);

@@ -34,16 +34,17 @@ public abstract class CWRCMerger {
     private int completedEntities = 0;
     private String mainNode = "cwrc";
     private String entityNode = "entity";
-    
-    public String getMainNode(){
+    protected boolean layerIn = true;
+
+    public String getMainNode() {
         return mainNode;
     }
-    
-    public String getEntityNode(){
+
+    public String getEntityNode() {
         return entityNode;
     }
-    
-    public static NodeList emptyList = new NodeList(){
+    public static NodeList emptyList = new NodeList() {
+
         public Node item(int i) {
             return null;
         }
@@ -52,7 +53,7 @@ public abstract class CWRCMerger {
             return 0;
         }
     };
-    
+
     public CWRCMerger() throws CWRCException {
         this("cwrc", "entity");
     }
@@ -60,7 +61,7 @@ public abstract class CWRCMerger {
     public CWRCMerger(String mainNode, String entityNode) throws CWRCException {
         this.mainNode = mainNode;
         this.entityNode = entityNode;
-        
+
         try {
             doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
             Element cwrc = doc.createElement(mainNode);
@@ -98,17 +99,17 @@ public abstract class CWRCMerger {
      * @throws CWRCException 
      */
     public abstract Node performMerge(QueryResult result, Element inputNode) throws CWRCException;
-    
-    private void cleanUpResults(List<QueryResult> result, float prevBest){
-        if(result.isEmpty()){
+
+    private void cleanUpResults(List<QueryResult> result, float prevBest) {
+        if (result.isEmpty()) {
             return;
         }
-        
+
         Iterator<QueryResult> iterator = result.iterator();
         boolean hasMultiple = false;
         boolean recheckList = false;
         float bestScore = prevBest;
-        
+
         // Remove any unacceptable matches.
         while (iterator.hasNext()) {
             QueryResult check = iterator.next();
@@ -116,23 +117,23 @@ public abstract class CWRCMerger {
                 iterator.remove();
                 continue;
             }
-            
-            if(check.getScore() > bestScore){
+
+            if (check.getScore() > bestScore) {
                 recheckList = bestScore != prevBest;
                 hasMultiple = false;
                 bestScore = check.getScore();
-            }else if(check.getScore() == bestScore){
+            } else if (check.getScore() == bestScore) {
                 hasMultiple = true;
-            }else{
+            } else {
                 iterator.remove();
             }
         }
-        
-        if(recheckList){
+
+        if (recheckList) {
             cleanUpResults(result, bestScore);
         }
     }
-    
+
     /**
      * Runs the merging process on an input node. This is done by performing a search on a node. The results are then checked to see if there are multiple ones.
      * If there is more than one result, then the results are sent to the controller for the user to choose the best match.
@@ -145,43 +146,47 @@ public abstract class CWRCMerger {
      */
     public void mergeNodes(CWRCDataSource mainData, Element inputNode, MergeReport report, boolean autoMerge) throws CWRCException {
         try {
-            List<QueryResult> result = search(mainData, inputNode);
-            cleanUpResults(result, Integer.MIN_VALUE);
+            List<QueryResult> result;
+            synchronized (mainData) {
+                result = search(mainData, inputNode);
+                cleanUpResults(result, Integer.MIN_VALUE);
+            }
+            synchronized (mainData) {
+                if (result.size() > (autoMerge ? 1 : 0)) {
+                    // Merge the best possible match
+                    //QueryResult bestMatch = null;
+                    MultipleMatchModel match = new MultipleMatchModel(result.size() + " matches", result, inputNode, layerIn);
+                    controller.addMerge(match);
+                    try {
+                        while (!match.isSelected()) {
+                            Thread.sleep(WAIT_TIME);
+                        }
 
-            if (result.size() > (autoMerge ? 1 : 0)) {
-                // Merge the best possible match
-                //QueryResult bestMatch = null;
-                MultipleMatchModel match = new MultipleMatchModel(result.size() + " matches", result, inputNode);
-                controller.addMerge(match);
-                try {
-                    while (!match.isSelected()) {
-                        Thread.sleep(WAIT_TIME);
+                        QueryResult selectedMatch = match.getSelection();
+
+                        if (selectedMatch == null) {
+                            appendNode(inputNode, report);
+                        } else {
+                            mergeNode(mainData, inputNode, selectedMatch, report);
+                        }
+                    } catch (InterruptedException ex) {
+                        throw new CWRCException(ex);
                     }
-
-                    QueryResult selectedMatch = match.getSelection();
-
-                    if (selectedMatch == null) {
-                        appendNode(inputNode, report);
+                } else if (autoMerge && result.size() == 1) { // Changed to force selection
+                    // Check if this is a true match
+                    if (result.get(0).isMatch()) {
+                        mergeNode(mainData, inputNode, result.get(0), report);
                     } else {
-                        mergeNode(mainData, inputNode, selectedMatch, report);
+                        appendNode(inputNode, report);
                     }
-                } catch (InterruptedException ex) {
-                    throw new CWRCException(ex);
-                }
-            } else if (autoMerge && result.size() == 1) { // Changed to force selection
-                // Check if this is a true match
-                if (result.get(0).isMatch()) {
-                    mergeNode(mainData, inputNode, result.get(0), report);
                 } else {
                     appendNode(inputNode, report);
                 }
-            } else {
-                appendNode(inputNode, report);
             }
         } catch (CWRCException ex) {
-            if(CWRCException.Error.INVALID_NODE == ex.getError()){
+            if (CWRCException.Error.INVALID_NODE == ex.getError()) {
                 report.printError(ex, inputNode);
-            }else{
+            } else {
                 throw ex;
             }
         }
@@ -190,25 +195,25 @@ public abstract class CWRCMerger {
     private void mergeNode(CWRCDataSource mainData, Element node, QueryResult selectedMatch, MergeReport report) throws CWRCException {
         System.out.println("Merging: " + selectedMatch.getName() + "   Score: " + selectedMatch.getScore());
         Node mergeData = performMerge(selectedMatch, node);
-        
-        if(mergeData != null){
+
+        if (mergeData != null) {
             mainData.triggerMerge(mergeData, selectedMatch.getId());
         }
 
         synchronized (doc) {
-            Element entity = (Element)doc.importNode(node, true); // This is done to avoid any null pointer exceptions when printing DOM objects on multiple threads.
+            Element entity = (Element) doc.importNode(node, true); // This is done to avoid any null pointer exceptions when printing DOM objects on multiple threads.
             report.printMerge(entity, selectedMatch);
-            
+
             controller.incrementCurrentEntities();
         }
     }
 
     private void appendNode(Element node, MergeReport report) {
         synchronized (doc) {
-            Element entity = (Element)doc.importNode(node, true);
+            Element entity = (Element) doc.importNode(node, true);
             report.printAppend(entity);
             ((Document) doc).getDocumentElement().appendChild(entity);
-            
+
             controller.incrementCurrentEntities();
         }
     }
@@ -261,10 +266,10 @@ public abstract class CWRCMerger {
     }
 
     protected final NodeList getNodeList(String path, Element inputNode, VariableResolver resolver) throws CWRCException {
-        if(inputNode == null){
+        if (inputNode == null) {
             return emptyList;
         }
-        
+
         try {
             XPathExpression expr = null;
 
@@ -309,6 +314,8 @@ public abstract class CWRCMerger {
         }
 
         return out;
+
+
     }
 
     protected static class CWRCNodeList implements NodeList {
@@ -337,8 +344,8 @@ public abstract class CWRCMerger {
 
         return null;
     }
-    
-    protected void setTotalEntities(int total){
+
+    protected void setTotalEntities(int total) {
         controller.setTotalEntities(total);
     }
 }

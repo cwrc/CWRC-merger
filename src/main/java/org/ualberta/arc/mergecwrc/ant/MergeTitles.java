@@ -15,10 +15,10 @@ import org.apache.tools.ant.types.FileSet;
 import org.apache.tools.ant.types.resources.FileResource;
 import org.ualberta.arc.mergecwrc.CWRCException;
 import org.ualberta.arc.mergecwrc.MergeReport;
-import org.ualberta.arc.mergecwrc.io.CWRCFile;
+import org.ualberta.arc.mergecwrc.io.MODSFile;
 import org.ualberta.arc.mergecwrc.merger.CWRCMergerFactory;
 import org.ualberta.arc.mergecwrc.merger.CWRCMergerFactory.MergeType;
-import org.ualberta.arc.mergecwrc.merger.custom.TitleMerger;
+import org.ualberta.arc.mergecwrc.merger.custom.TitleModsMerger;
 import org.ualberta.arc.mergecwrc.ui.MergerController;
 import org.ualberta.arc.mergecwrc.ui.swing.MergerControllerSwing;
 
@@ -64,7 +64,7 @@ public class MergeTitles {
      */
     public void execute() throws IOException{
         MergerController controller = new MergerControllerSwing();
-        CWRCMergerFactory.setMaxThreads(8);
+        CWRCMergerFactory.setMaxThreads(1);
         
         SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmmss");
         MergeReport report = new MergeReport("Title Report", new FileOutputStream("report" + df.format(new Date()) + ".xml"));
@@ -74,8 +74,8 @@ public class MergeTitles {
             List<InputStream> inFiles = getFileInputCollection();
             
             CWRCMergerFactory factory = CWRCMergerFactory.getFactory(controller, MergeType.TITLE, report, inFiles, true);
-            ((TitleMerger)factory.getMerger()).setReport(new MergeReport("Title Match Report", new FileOutputStream("match_report" + df.format(new Date()) + ".xml")));
-            CWRCFile mainSrc = new CWRCFile("title_cwrc.xml");
+            ((TitleModsMerger)factory.getMerger()).setReport(new MergeReport("Title Match Report", new FileOutputStream("match_report" + df.format(new Date()) + ".xml")));
+            MODSFile mainSrc = new MODSFile("title_mods.xml");
 
             while (iterator.hasNext()) {
                 try {
@@ -83,7 +83,7 @@ public class MergeTitles {
 
                     System.out.println("Reading File: " + file.getFile().getAbsolutePath());
                     System.out.flush();
-                    CWRCFile cwrcFile = new CWRCFile(file.getFile().getAbsolutePath());
+                    MODSFile cwrcFile = new MODSFile(file.getFile().getAbsolutePath());
 
                     factory.mergeFile(mainSrc, cwrcFile);
                 } catch (CWRCException ex) {

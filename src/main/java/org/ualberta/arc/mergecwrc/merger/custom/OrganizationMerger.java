@@ -229,6 +229,22 @@ public class OrganizationMerger extends CWRCMerger {
 
         return true;
     }
+    
+    private boolean addOrgType(Element orgTypes, Element orgType) throws CWRCException{
+        String check = orgType.getTextContent();
+        
+        NodeList orgs = orgTypes.getElementsByTagName("orgType");
+        
+        for(int index = 0; index < orgs.getLength(); ++index){
+            Element checkOrg = (Element)orgs.item(index);
+            
+            if(StringUtils.endsWithIgnoreCase(check, checkOrg.getTextContent())){
+                return false;
+            }
+        }
+        
+        return true;
+    }
 
     private void mergeIdentity(Element mainElement, Element newElement) throws CWRCException {
         Document doc = mainElement.getOwnerDocument();
@@ -257,8 +273,10 @@ public class OrganizationMerger extends CWRCMerger {
             Element orgTypes = checkAndAddElement(mainElement, "orgTypes");
             
             for(int index = 0; index < domList.getLength(); ++index){
-                Node orgType = doc.importNode(domList.item(index), true);
-                orgTypes.appendChild(orgType);
+                if(addOrgType(orgTypes, (Element)domList.item(index))){
+                    Node orgType = doc.importNode(domList.item(index), true);
+                    orgTypes.appendChild(orgType);
+                }
             }
         }
     }

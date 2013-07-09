@@ -299,9 +299,13 @@ public class AuthorMerger extends CWRCMerger {
             }
         }
     }
-
+    
     @Override
     public List<QueryResult> search(CWRCDataSource mainData, Element inputNode) throws CWRCException {
+        return search(mainData, inputNode, 10);
+    }
+
+    public List<QueryResult> search(CWRCDataSource mainData, Element inputNode, int searchLeft) throws CWRCException {
         try {
             Map<Node, QueryResult> results = new HashMap<Node, QueryResult>();
 
@@ -352,7 +356,11 @@ public class AuthorMerger extends CWRCMerger {
             return output;
         } catch (NullPointerException ex) {
             System.err.println("Found null pointer exception. Attempting to re-search.");
-            return search(mainData, inputNode);
+            if(searchLeft > 0){
+                return search(mainData, inputNode, searchLeft - 1);
+            }
+            
+            return Collections.EMPTY_LIST;
         }
     }
 
