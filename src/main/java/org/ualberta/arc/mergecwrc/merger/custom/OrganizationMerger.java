@@ -184,7 +184,7 @@ public class OrganizationMerger extends CWRCMerger {
             return output;
         } catch (NullPointerException ex) {
             ex.printStackTrace();
-            System.err.println("Found null pointer exception. Attempting to re-search.");
+            System.err.println("Found null pointer exception. Attempting to re-search. " + ex.getStackTrace()[0].toString() );
             return search(mainData, inputNode);
         }
     }
@@ -295,7 +295,7 @@ public class OrganizationMerger extends CWRCMerger {
     }
 
     @Override
-    public synchronized Node performMerge(QueryResult result, Element inputNode) throws CWRCException {
+    public Node performMerge(QueryResult result, Element inputNode) throws CWRCException {
         Element mainElement = (Element) result.getNode();
         Element newElement = (Element) inputNode.getElementsByTagName("organization").item(0);
 

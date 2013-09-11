@@ -16,7 +16,7 @@ public class ScoringUtil {
     
     public static float computeLevenshteinPercent(CharSequence str1,
             CharSequence str2){
-        int distance = computeLevenshteinDistance(str1, str2);
+        int distance = Math.abs(computeLevenshteinDistance(str1, str2));
         
         return 1.0f - (float)(distance << 1)/(float)(str1.length() + str2.length());
     }

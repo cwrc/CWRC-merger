@@ -29,19 +29,25 @@ import org.w3c.dom.NodeList;
 public class TitleModsMerger extends CWRCMerger{
     public static final String MAIN_NODE = "modsCollectionDefinition";
     public static final String ENTITY_NODE = "mods";
-    private static final float MIN_PERCENT = 2.0f;
+    private static final float MIN_PERCENT = 0.9f;
     
-    private int checkValue = 0;
-    private MergeReport report = null;
     private DocumentBuilder docBuilder = null;
+    private Document recordDoc = null;
+    
+    //private int checkValue = 0;
+    private MergeReport report = null;
     
     public TitleModsMerger(MergeReport report) throws CWRCException{
         super(MAIN_NODE, ENTITY_NODE);
         this.report = report;
-        try {
-            docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
-        } catch (ParserConfigurationException ex) {
-            throw new CWRCException(ex);
+        
+        if(recordDoc == null){
+            try {
+                docBuilder = DocumentBuilderFactory.newInstance().newDocumentBuilder();
+                recordDoc = docBuilder.newDocument();
+            } catch (ParserConfigurationException ex) {
+                throw new CWRCException(ex);
+            }
         }
         
         this.layerIn = false;
@@ -53,7 +59,7 @@ public class TitleModsMerger extends CWRCMerger{
     
     @Override
     public void init(Collection<InputStream> inputFiles) throws CWRCException {
-        checkValue = 0;
+        //checkValue = 0;
     }
     
     public void searchName(Element checkChild, Element title, Element inputNode, Map<String, QueryResult> results, CWRCDataSource mainData){
@@ -76,19 +82,20 @@ public class TitleModsMerger extends CWRCMerger{
         titleString = title.getTextContent();
         
         // Compare the matches
-        float difference = ScoringUtil.computeLevenshteinPercent(checkChildString, titleString);
+        float difference = ScoringUtil.computeLevenshteinPercent(checkChildString.toLowerCase(), titleString.toLowerCase());
         
         if(difference > MIN_PERCENT){
-            Element matchedNode = (Element)checkChild.getParentNode().getParentNode();
-            if(isMatched(checkChild, matchedNode)){
-                addResult(matchedNode, checkChildString, results, difference, checkChildStrength + titleStrength);
+            Element matchedNode = (Element)title.getParentNode().getParentNode();
+            if(isMatched((Element)checkChild.getParentNode().getParentNode(), matchedNode)){
+                addResult((Element)checkChild.getParentNode().getParentNode(), checkChildString, results, difference, checkChildStrength + titleStrength);
             }
         }
     }
     
-    private boolean isMatched(Element checkChild, Element matchedNode){
+    private boolean isMatched(Element checkChild, Element matchedNode){        
         NodeList checkList = checkChild.getElementsByTagName("genre");
         NodeList matchedList = matchedNode.getElementsByTagName("genre");
+        String text = null;
         
         // Obtain needed genres to compare
         String checkLevel = null;
@@ -98,17 +105,20 @@ public class TitleModsMerger extends CWRCMerger{
             
             if(StringUtils.equals(attribute, "tei:level")){
                 checkLevel = element.getTextContent();
+                break;
             }
         }
         
         // Compare Genres
-        for(int i = 0; i < matchedList.getLength(); ++i){
-            Element element = (Element)checkList.item(i);
-            String attribute = element.getAttribute("authority");
-            String text = element.getTextContent();
-            
-            if(checkLevel != null && StringUtils.equals(attribute, "tei:level") && !StringUtils.equals(checkLevel, text)){
-                return false;
+        if(checkLevel != null){
+            for(int i = 0; i < matchedList.getLength(); ++i){
+                Element element = (Element)matchedList.item(i);
+                String attribute = element.getAttribute("authority");
+                text = element.getTextContent();
+                
+                if(StringUtils.equals(attribute, "tei:level")){
+                    return StringUtils.equals(checkLevel, text);
+                }
             }
         }
         
@@ -170,17 +180,18 @@ public class TitleModsMerger extends CWRCMerger{
             return output;
         } catch (NullPointerException ex) {
             System.err.println("Found null pointer exception. Attempting to re-search.");
+            ex.printStackTrace();
             return search(mainData, inputNode);
         }
     }
     
     private void recordAllMatches(Element inputNode, List<QueryResult> matchesResults){
-        Document doc = docBuilder.newDocument();
+        Document doc = recordDoc;
         
         Element possibleMatches = doc.createElement("possibleMatches");
         
         Element input = doc.createElement("input");
-        input.appendChild(doc.importNode(inputNode, true));
+        input.appendChild(doc.adoptNode(inputNode.cloneNode(true)));
         possibleMatches.appendChild(input);
         
         Element matches = doc.createElement("matches");
@@ -190,13 +201,13 @@ public class TitleModsMerger extends CWRCMerger{
             match.setAttribute("score", Float.toString(result.getScore()));
             match.setAttribute("isAcceptableMatch", Boolean.toString(result.isMatch()));
 
-            match.appendChild(doc.importNode(result.getNode(), true));
+            match.appendChild(doc.adoptNode(result.getNode().cloneNode(true)));
 
             matches.appendChild(match);
         }
         
         possibleMatches.appendChild(matches);
-        doc.appendChild(possibleMatches);
+        //doc.appendChild(possibleMatches);
 
         report.printCustomElement(possibleMatches);
     }
@@ -316,10 +327,14 @@ public class TitleModsMerger extends CWRCMerger{
     private void mergeOriginInfo(Element mainElement, Element newElement) throws CWRCException {
         Document doc = mainElement.getOwnerDocument();
         
-        Element mainOriginInfo = checkAndAddElement(mainElement, "originInfo");
+        Element mainOriginInfo = null;
         NodeList newMatching = getNodeList("originInfo", newElement, null);
         
         for(int index = 0; index < newMatching.getLength(); ++index){
+            if(mainOriginInfo == null){
+                mainOriginInfo = checkAndAddElement(mainElement, "originInfo");
+            }
+            
             Element newOriginInfo = (Element)newMatching.item(index);
             NodeList children = newOriginInfo.getChildNodes();
             
@@ -349,12 +364,18 @@ public class TitleModsMerger extends CWRCMerger{
     private void mergeRecordInfo(Element mainElement, Element newElement) throws CWRCException {
         Document doc = mainElement.getOwnerDocument();
         
+        Element recordInfo = this.checkAndAddElement(mainElement, "recordInfo");
         NodeList newMatching = newElement.getElementsByTagName("recordInfo");
         
         for(int index = 0; index < newMatching.getLength(); ++index){
-            Node recordInfo = doc.adoptNode(newMatching.item(index).cloneNode(true));
+            Element matching = (Element)newMatching.item(index);
+            NodeList children = matching.getChildNodes();
             
-            mainElement.appendChild(recordInfo);
+            for(int i = 0; i < children.getLength(); ++i){
+                Node child = doc.adoptNode(children.item(i).cloneNode(true));
+                
+                recordInfo.appendChild(child);
+            }
         }
     }
 }

@@ -22,6 +22,7 @@ import javax.xml.transform.stream.StreamResult;
 import org.ualberta.arc.mergecwrc.CWRCException;
 import org.ualberta.arc.mergecwrc.merger.custom.TitleModsMerger;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
@@ -34,9 +35,11 @@ import org.xml.sax.SAXException;
 public class MODSFile extends CWRCDataSource{
     private volatile File file;
     private volatile Document doc;
+    private volatile Element docElement;
     
     public MODSFile(String fileName) throws CWRCException {
         loadFile(fileName);
+        docElement = doc.getDocumentElement();
     }
     
     @Override
@@ -46,13 +49,13 @@ public class MODSFile extends CWRCDataSource{
     
     @Override
     public void appendNode(Node node) {
-        Node entity = ((Document) doc).importNode(node, true);
-        ((Document) doc).getDocumentElement().appendChild(entity);
+        Node entity = doc.adoptNode(node);
+        docElement.appendChild(entity);
     }
     
     @Override
     public NodeList getAllEntities() {
-        return doc.getDocumentElement().getElementsByTagName(TitleModsMerger.ENTITY_NODE);
+        return docElement.getElementsByTagName(TitleModsMerger.ENTITY_NODE);
     }
     
     /**

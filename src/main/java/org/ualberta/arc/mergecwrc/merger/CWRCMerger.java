@@ -30,8 +30,9 @@ public abstract class CWRCMerger {
 
     private static final int WAIT_TIME = 2500;
     private volatile Document doc;
+    private final Integer docLock = 1;
     private volatile MergerController controller;
-    private int completedEntities = 0;
+    //private int completedEntities = 0;
     private String mainNode = "cwrc";
     private String entityNode = "entity";
     protected boolean layerIn = true;
@@ -147,42 +148,41 @@ public abstract class CWRCMerger {
     public void mergeNodes(CWRCDataSource mainData, Element inputNode, MergeReport report, boolean autoMerge) throws CWRCException {
         try {
             List<QueryResult> result;
-            synchronized (mainData) {
-                result = search(mainData, inputNode);
-                cleanUpResults(result, Integer.MIN_VALUE);
-            }
-            synchronized (mainData) {
-                if (result.size() > (autoMerge ? 1 : 0)) {
-                    // Merge the best possible match
-                    //QueryResult bestMatch = null;
-                    MultipleMatchModel match = new MultipleMatchModel(result.size() + " matches", result, inputNode, layerIn);
-                    controller.addMerge(match);
-                    try {
-                        while (!match.isSelected()) {
-                            Thread.sleep(WAIT_TIME);
-                        }
+            //synchronized (mainData) {
+            result = search(mainData, inputNode);
+            cleanUpResults(result, Integer.MIN_VALUE);
 
-                        QueryResult selectedMatch = match.getSelection();
-
-                        if (selectedMatch == null) {
-                            appendNode(inputNode, report);
-                        } else {
-                            mergeNode(mainData, inputNode, selectedMatch, report);
-                        }
-                    } catch (InterruptedException ex) {
-                        throw new CWRCException(ex);
+            if (result.size() > (autoMerge ? 1 : 0)) {
+                // Merge the best possible match
+                //QueryResult bestMatch = null;
+                MultipleMatchModel match = new MultipleMatchModel(result.size() + " matches", result, inputNode, layerIn);
+                controller.addMerge(match);
+                try {
+                    while (!match.isSelected()) {
+                        Thread.sleep(WAIT_TIME);
                     }
-                } else if (autoMerge && result.size() == 1) { // Changed to force selection
-                    // Check if this is a true match
-                    if (result.get(0).isMatch()) {
-                        mergeNode(mainData, inputNode, result.get(0), report);
-                    } else {
+
+                    QueryResult selectedMatch = match.getSelection();
+
+                    if (selectedMatch == null) {
                         appendNode(inputNode, report);
+                    } else {
+                        mergeNode(mainData, inputNode, selectedMatch, report);
                     }
+                } catch (InterruptedException ex) {
+                    throw new CWRCException(ex);
+                }
+            } else if (autoMerge && result.size() == 1) { // Changed to force selection
+                // Check if this is a true match
+                if (result.get(0).isMatch()) {
+                    mergeNode(mainData, inputNode, result.get(0), report);
                 } else {
                     appendNode(inputNode, report);
                 }
+            } else {
+                appendNode(inputNode, report);
             }
+            //}
         } catch (CWRCException ex) {
             if (CWRCException.Error.INVALID_NODE == ex.getError()) {
                 report.printError(ex, inputNode);
@@ -200,7 +200,7 @@ public abstract class CWRCMerger {
             mainData.triggerMerge(mergeData, selectedMatch.getId());
         }
 
-        synchronized (doc) {
+        synchronized (docLock) {
             Element entity = (Element) doc.importNode(node, true); // This is done to avoid any null pointer exceptions when printing DOM objects on multiple threads.
             report.printMerge(entity, selectedMatch);
 
@@ -209,7 +209,7 @@ public abstract class CWRCMerger {
     }
 
     private void appendNode(Element node, MergeReport report) {
-        synchronized (doc) {
+        synchronized (docLock) {
             Element entity = (Element) doc.importNode(node, true);
             report.printAppend(entity);
             ((Document) doc).getDocumentElement().appendChild(entity);
@@ -269,29 +269,35 @@ public abstract class CWRCMerger {
         if (inputNode == null) {
             return emptyList;
         }
+        
+        Object result = null;
 
         try {
             XPathExpression expr = null;
 
-            if (resolver != null) {
-                CWRCDataSource.getFactory().setXPathVariableResolver(resolver);
-                XPath xpath = CWRCDataSource.getFactory().newXPath();
-                expr = xpath.compile(path);
-            } else {
-                expr = CWRCDataSource.getExpression(path);
-            }
+            boolean searchComplete = false;
 
-            //Node parent = inputNode.getParentNode();
-            //parent.removeChild(inputNode);
-
-            Object result = null;
-            try {
-                synchronized (inputNode.getOwnerDocument()) {
-                    result = expr.evaluate(inputNode, XPathConstants.NODESET);
+            while (!searchComplete) {
+                if (resolver != null) {
+                    CWRCDataSource.getFactory().setXPathVariableResolver(resolver);
+                    XPath xpath = CWRCDataSource.getFactory().newXPath();
+                    expr = xpath.compile(path);
+                } else {
+                    expr = CWRCDataSource.getExpression(path);
                 }
-            } catch (NullPointerException ex) {
-                System.out.println("Rerunning Query: " + path);
-                return getNodeList(path, inputNode, resolver);
+
+                //Node parent = inputNode.getParentNode();
+                //parent.removeChild(inputNode);
+                
+                searchComplete = true;
+                try {
+                    synchronized (inputNode.getOwnerDocument()) {
+                        result = expr.evaluate(inputNode, XPathConstants.NODESET);
+                    }
+                } catch (NullPointerException ex) {
+                    System.out.println("Rerunning Query: " + path);
+                    searchComplete = false;
+                }
             }
 
             //parent.appendChild(inputNode);

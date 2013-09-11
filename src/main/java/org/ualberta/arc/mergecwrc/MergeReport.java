@@ -1,6 +1,5 @@
 package org.ualberta.arc.mergecwrc;
 
-import java.io.ByteArrayOutputStream;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.text.SimpleDateFormat;
@@ -22,8 +21,16 @@ public class MergeReport {
 
     private volatile PrintStream out;
     private TransformerFactory factory = TransformerFactory.newInstance();
-
+    private Transformer transformer;
+    
     public MergeReport(String name, OutputStream output) {
+        try{
+            transformer = factory.newTransformer();
+            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
+        }catch (TransformerException ex) {
+            //return ex.getMessage();
+        }
+        
         out = new PrintStream(output);
 
         out.println("<report>");
@@ -44,19 +51,24 @@ public class MergeReport {
         out.close();
     }
 
-    private String getNodeAsText(Element node) {
+    private void getNodeAsText(Element node) {
+        if(out == null){
+            return;
+        }
+        
         try {
-            ByteArrayOutputStream out = new ByteArrayOutputStream();
-
-            Transformer transformer = factory.newTransformer();
-            transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
             DOMSource source = new DOMSource(node);
+            
+            if(source == null){
+                return;
+            }
+            
             StreamResult result = new StreamResult(out);
             transformer.transform(source, result);
-
-            return out.toString();
+            
+            //return outString;
         } catch (TransformerException ex) {
-            return ex.getMessage();
+            //return ex.getMessage();
         }
     }
 
@@ -64,54 +76,57 @@ public class MergeReport {
         out.println(output);
     }
     
-    private void addElement(StringBuilder builder, String entityName, String text){
-        builder.append('\n');
+    private void addElement(String entityName, Element node){
+        out.print('\n');
         
-        builder.append('<');
-        builder.append(entityName);
-        builder.append('>');
+        out.print('<');
+        out.print(entityName);
+        out.print('>');
         
-        builder.append(text);
+        if(node != null){
+            getNodeAsText(node);
+        }
         
-        builder.append("</");
-        builder.append(entityName);
-        builder.append('>');
+        out.print("</");
+        out.print(entityName);
+        out.print('>');
     }
 
     public void printMerge(Element inputNode, QueryResult mergeNode) {
-        StringBuilder builder = new StringBuilder("<merge score=");
-        builder.append(mergeNode.getScore());
-        builder.append('>');
+        out.print("<merge score=");
+        out.print(mergeNode.getScore());
+        out.print('>');
         
-        addElement(builder, "inputNode", getNodeAsText(inputNode));
-        addElement(builder, "resultNode", getNodeAsText(mergeNode.getNode()));
+        addElement("inputNode", inputNode);
+        addElement("resultNode", mergeNode.getNode());
 
-        builder.append("\n</merge>");
+        out.print("\n</merge>");
         
-        printString(builder.toString());
+        out.print("\n");
     }
 
     public void printAppend(Element inputNode) {
-        StringBuilder builder = new StringBuilder("<append>");
+        out.print("<append>");
         
-        addElement(builder, "inputNode", getNodeAsText(inputNode));
+        addElement("inputNode", inputNode);
 
-        builder.append("\n</append>");
+        out.print("\n</append>");
         
-        printString(builder.toString());
+        out.print("\n");
     }
     
     public void printCustomElement(Element element){
-        printString(getNodeAsText(element));
+        getNodeAsText(element);
     }
     
     public void printError(CWRCException ex, Element inputNode){
-        StringBuilder builder = new StringBuilder("<error code='");
-        builder.append(ex.getError().name());
-        builder.append("'>");
+        out.print("<error code='");
+        out.print(ex.getError().name());
+        out.print("'>");
         
-        addElement(builder, "inputNode", getNodeAsText(inputNode));
+        addElement("inputNode", inputNode);
         
-        builder.append("\n</error>");
+        out.print("\n</error>");
+        out.print("\n");
     }
 }
