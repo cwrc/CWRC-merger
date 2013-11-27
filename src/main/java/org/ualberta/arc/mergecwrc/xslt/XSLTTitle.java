@@ -10,6 +10,7 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
+import org.apache.xpath.NodeSet;
 import org.ualberta.arc.mergecwrc.CWRCException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -285,7 +286,6 @@ public class XSLTTitle {
     static {
         roles.add("eds");
     }
-    
     private final List<String> titleList = new ArrayList<String>();
 
     public String addToTitleList(String input) {
@@ -297,15 +297,15 @@ public class XSLTTitle {
     }
 
     public NodeList getTitleList() throws Exception {
-        final Document doc =  DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
+        final Document doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
 
         return new NodeList() {
 
             public Node item(int i) {
                 Element element = doc.createElement("title");
-                
+
                 element.setTextContent(titleList.get(i));
-                
+
                 return element;
             }
 
@@ -393,6 +393,18 @@ public class XSLTTitle {
         for (String places : title.getPlaces()) {
             lastTitle.addPlace(places);
         }
+    }
+
+    public static boolean addCEWWOriginInfo(NodeSet list1, NodeSet list2) {
+        if (list1 == null || list1.getLength() < 1) {
+            return false;
+        }
+
+        if (list2 == null || list2.getLength() < 1) {
+            return false;
+        }
+
+        return true;
     }
 
     public NodeList readCEWWTitleEntries(String input, String type) throws IOException, CWRCException {
@@ -747,6 +759,7 @@ public class XSLTTitle {
             for (Title title : titles) {
                 Element titleElement = doc.createElement("title");
                 titleElement.setAttribute("isAlternative", Boolean.toString(isAlternative));
+                titleElement.setAttribute("moreThanOne", Boolean.toString(titles.size() > 1));
                 isAlternative = true;
 
                 Element element = doc.createElement("title");

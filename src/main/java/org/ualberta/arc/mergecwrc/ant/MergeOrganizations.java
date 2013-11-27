@@ -63,7 +63,7 @@ public class MergeOrganizations {
      */
     public void execute() throws IOException{
         MergerController controller = new MergerControllerSwing();
-        CWRCMergerFactory.setMaxThreads(3);
+        CWRCMergerFactory.setMaxThreads(1);
         
         SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmmss");
         MergeReport report = new MergeReport("Organization Report", new FileOutputStream("report" + df.format(new Date()) + ".xml"));

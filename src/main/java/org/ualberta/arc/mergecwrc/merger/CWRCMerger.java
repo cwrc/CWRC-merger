@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Vector;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.xpath.XPath;
@@ -264,6 +265,29 @@ public abstract class CWRCMerger {
             throw new CWRCException(CWRCException.Error.QUERY_ERROR, ex);
         }
     }
+    
+    protected final NodeList getNodeListByPath(String path, Element inputNode) throws CWRCException {
+        if(path.isEmpty()){
+            return new LocalNodeList(inputNode);
+        }
+        
+        LocalNodeList list = new LocalNodeList();
+        int index = path.indexOf("/");
+        String child;
+        
+        if(index < 0){
+            child = path;
+        }else{
+            child = path.substring(0, index);
+        }
+        
+        NodeList search = inputNode.getElementsByTagName(path.substring(0, index));
+        for(int i = 0; i < search.getLength(); ++i){
+            
+        }
+        
+        return list;
+    }
 
     protected final NodeList getNodeList(String path, Element inputNode, VariableResolver resolver) throws CWRCException {
         if (inputNode == null) {
@@ -326,7 +350,7 @@ public abstract class CWRCMerger {
 
     protected static class CWRCNodeList implements NodeList {
 
-        private List<Node> nodes = new ArrayList<Node>();
+        private List<Node> nodes = new Vector<Node>();
 
         public Node item(int index) {
             return nodes.get(index);
@@ -353,5 +377,30 @@ public abstract class CWRCMerger {
 
     protected void setTotalEntities(int total) {
         controller.setTotalEntities(total);
+    }
+    
+    public static class LocalNodeList implements NodeList{
+        private List<Element> backList = new Vector<Element>();
+        
+        public LocalNodeList(){
+            
+        }
+        
+        public LocalNodeList(Element main){
+            backList.add(main);
+        }
+        
+        public void Merge(LocalNodeList list){
+            backList.addAll(list.backList);
+        }
+        
+        public Node item(int i) {
+            return backList.get(i);
+        }
+
+        public int getLength() {
+            return backList.size();
+        }
+        
     }
 }

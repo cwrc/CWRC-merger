@@ -6,11 +6,11 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Date;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Vector;
 import org.apache.tools.ant.types.FileSet;
 import org.apache.tools.ant.types.resources.FileResource;
 import org.ualberta.arc.mergecwrc.CWRCException;
@@ -42,7 +42,7 @@ public class MergeTitles {
             return Collections.EMPTY_LIST;
         }
         
-        List<InputStream> out = new ArrayList<InputStream>(fileset.size());
+        List<InputStream> out = new Vector<InputStream>(fileset.size());
         
         Iterator iterator = fileset.iterator();
         while(iterator.hasNext()){

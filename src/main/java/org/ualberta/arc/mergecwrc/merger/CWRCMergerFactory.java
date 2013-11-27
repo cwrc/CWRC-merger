@@ -1,11 +1,14 @@
 package org.ualberta.arc.mergecwrc.merger;
 
 import java.io.InputStream;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.ualberta.arc.mergecwrc.io.CWRCDataSource;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Iterator;
-import java.util.List;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.BlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 import org.ualberta.arc.mergecwrc.CWRCException;
 import org.ualberta.arc.mergecwrc.MergeReport;
 import org.ualberta.arc.mergecwrc.merger.custom.AuthorSimpleDifMerger;
@@ -82,7 +85,6 @@ public class CWRCMergerFactory {
 
         System.out.println("Reading Nodes.");
         ReaderThread nodeReader = new ReaderThread(entities, mainSrc, MAX_THREADS);
-
         nodeReader.start();
 
         try {
@@ -91,9 +93,6 @@ public class CWRCMergerFactory {
             //throw new CWRCException(ex);
         }
 
-        // Wait for all threads to close
-        nodeReader.close();
-
         System.out.println("Flushing all elements to the main document.");
         merger.flushNodes(mainSrc);
     }
@@ -101,123 +100,57 @@ public class CWRCMergerFactory {
     private class ReaderThread extends Thread {
 
         private NodeList entities;
-        private List<MergeThread> runningThreads;
         private CWRCDataSource mainSrc;
-        private int maxThreads;
-        private int ittIndex;
-        private final Integer indexLock = 0x00000001;
+        private ThreadPoolExecutor pool;
+        private int maxBlockingSize;
+        private BlockingQueue<Runnable> blockingQueue;
 
         public ReaderThread(NodeList entities, CWRCDataSource mainSrc, int maxThreads) {
+            this.maxBlockingSize = maxThreads << 3;
+           this. blockingQueue = new ArrayBlockingQueue<Runnable>(this.maxBlockingSize);
+            this.pool = new ThreadPoolExecutor(maxThreads, maxThreads, 7l, TimeUnit.DAYS, blockingQueue);
+        
             this.entities = entities;
-            this.maxThreads = maxThreads;
-            this.runningThreads = new ArrayList<MergeThread>(maxThreads);
             this.mainSrc = mainSrc;
-        }
-
-        @Override
-        public void run() {
-            int firstBatch = Math.min(maxThreads, entities.getLength());
-
-            synchronized (indexLock) {
-                ittIndex = 0;
-                for (int index = 0; index < firstBatch; ++index) {
-                    MergeThread thread = openThread(mainSrc, (Element) entities.item(ittIndex++));
-                }
-            }
-
-            for (MergeThread thread : runningThreads) {
-                try {
-                    thread.join();
-                } catch (InterruptedException ex) {
-                    System.err.println("Thread Closed.");
-                }
-            }
-        }
-
-        public void mergeNext(MergeThread thread) {
-            if (ittIndex < entities.getLength()) {
-                thread.setNode((Element) entities.item(ittIndex++));
-            } else {
-                thread.setNode(null);
-            }
-        }
-
-        private MergeThread openThread(CWRCDataSource mainSrc, Element node) {
-            // Wait for an open thread
-            MergeThread thread = null;
-            while (runningThreads.size() >= MAX_THREADS) {
-                Iterator<MergeThread> threads = runningThreads.iterator();
-
-                while (threads.hasNext()) {
-                    MergeThread check = threads.next();
-
-                    if (!check.isAlive()) {
-                        thread = check;
-                        thread.setNode(node);
-                        break;
-                    }
-                }
-            }
-
-            if (thread == null) {
-                thread = new MergeThread(mainSrc, node, autoMerge, this);
-                runningThreads.add(thread);
-            }
-
-            thread.start();
-
-            return thread;
-        }
-
-        public void close() {
-            while (runningThreads.size() > 0) {
-                Iterator<MergeThread> threads = runningThreads.iterator();
-
-                while (threads.hasNext()) {
-                    MergeThread check = threads.next();
-
-                    if (!check.isAlive()) {
-                        threads.remove();
-                    }
-                }
-
-                if ((runningThreads.size() > 0)) {
-                    try {
-                        Thread.sleep(60000);
-                    } catch (InterruptedException ex) {
-                        System.err.println("Waiting for threads to close.");
-                        //Logger.getLogger(CWRCMergerFactory.class.getName()).log(Level.SEVERE, null, ex);
-                    }
-                }
-            }
-        }
-    }
-
-    private class MergeThread extends Thread {
-
-        private Element node;
-        private CWRCDataSource mainSrc;
-        private boolean autoMerge;
-        private ReaderThread reader;
-
-        public MergeThread(CWRCDataSource mainSrc, Element node, boolean autoMerge, ReaderThread reader) {
-            this.node = node;
-            this.mainSrc = mainSrc;
-            this.autoMerge = autoMerge;
-            this.reader = reader;
-        }
-
-        public void setNode(Element node) {
-            this.node = node;
         }
 
         @Override
         public void run() {
             try {
-                while (this.node != null) {
-                    merger.mergeNodes(mainSrc, node, report, autoMerge);
-                    reader.mergeNext(this);
+                for(int index = 0; index < entities.getLength(); ++index){
+                    MergeThread thread = new MergeThread(mainSrc, (Element)entities.item(index), autoMerge);
+                    
+                    while(blockingQueue.size() >= this.maxBlockingSize){
+                        //System.err.println("Blocked, waiting " + index);
+                    }
+                    
+                    pool.execute(thread);
                 }
+                
+                pool.shutdown();
+                pool.awaitTermination(7, TimeUnit.DAYS);
+            } catch (InterruptedException ex) {
+                Logger.getLogger(CWRCMergerFactory.class.getName()).log(Level.SEVERE, null, ex);
+            }
+        }
+    }
+
+    private class MergeThread implements Runnable {
+
+        private Element node;
+        private CWRCDataSource mainSrc;
+        private boolean autoMerge;
+
+        public MergeThread(CWRCDataSource mainSrc, Element node, boolean autoMerge) {
+            this.node = node;
+            this.mainSrc = mainSrc;
+            this.autoMerge = autoMerge;
+        }
+
+        @Override
+        public void run() {
+            try {
+                merger.mergeNodes(mainSrc, node, report, autoMerge);
             } catch (CWRCException ex) {
                 ex.printStackTrace();
             }

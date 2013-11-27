@@ -1,8 +1,8 @@
 package org.ualberta.arc.mergecwrc.utils;
 
-import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Vector;
 
 /**
  *
@@ -47,7 +47,7 @@ public class ScoringUtil {
     }
 
     private static Integer[] arrayKeys(String input, char value) {
-        List<Integer> result = new ArrayList<Integer>();
+        List<Integer> result = new Vector<Integer>();
 
         for (int index = 0; index < input.length(); ++index) {
             if (input.charAt(index) == value) {
