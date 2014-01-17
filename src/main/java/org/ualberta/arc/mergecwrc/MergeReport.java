@@ -23,8 +23,8 @@ public class MergeReport {
     private TransformerFactory factory = TransformerFactory.newInstance();
     private Transformer transformer;
     
-    public MergeReport(String name, OutputStream output) {
-        try{
+    public MergeReport(CharSequence name, OutputStream output) {
+        /*try{
             transformer = factory.newTransformer();
             transformer.setOutputProperty(OutputKeys.OMIT_XML_DECLARATION, "yes");
         }catch (TransformerException ex) {
@@ -43,16 +43,16 @@ public class MergeReport {
 
         out.print("<date>");
         out.print(df.format(new Date()));
-        out.println("</date>");
+        out.println("</date>");*/
     }
 
     public void close() {
-        out.print("</report>");
-        out.close();
+        /*out.print("</report>");
+        out.close();*/
     }
 
     private void getNodeAsText(Element node) {
-        if(out == null){
+        /*if(out == null){
             return;
         }
         
@@ -69,15 +69,15 @@ public class MergeReport {
             //return outString;
         } catch (TransformerException ex) {
             //return ex.getMessage();
-        }
+        }*/
     }
 
-    private synchronized void printString(String output) {
-        out.println(output);
+    private synchronized void printString(CharSequence output) {
+        //out.println(output);
     }
     
     private void addElement(String entityName, Element node){
-        out.print('\n');
+        /*out.print('\n');
         
         out.print('<');
         out.print(entityName);
@@ -89,11 +89,11 @@ public class MergeReport {
         
         out.print("</");
         out.print(entityName);
-        out.print('>');
+        out.print('>');*/
     }
 
     public void printMerge(Element inputNode, QueryResult mergeNode) {
-        out.print("<merge score=");
+        /*out.print("<merge score=");
         out.print(mergeNode.getScore());
         out.print('>');
         
@@ -102,31 +102,31 @@ public class MergeReport {
 
         out.print("\n</merge>");
         
-        out.print("\n");
+        out.print("\n");*/
     }
 
     public void printAppend(Element inputNode) {
-        out.print("<append>");
+        /*out.print("<append>");
         
         addElement("inputNode", inputNode);
 
         out.print("\n</append>");
         
-        out.print("\n");
+        out.print("\n");*/
     }
     
     public void printCustomElement(Element element){
-        getNodeAsText(element);
+        //getNodeAsText(element);
     }
     
     public void printError(CWRCException ex, Element inputNode){
-        out.print("<error code='");
+        /*out.print("<error code='");
         out.print(ex.getError().name());
         out.print("'>");
         
         addElement("inputNode", inputNode);
         
         out.print("\n</error>");
-        out.print("\n");
+        out.print("\n");*/
     }
 }

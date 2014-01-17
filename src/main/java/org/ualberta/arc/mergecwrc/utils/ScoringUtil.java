@@ -1,8 +1,9 @@
 package org.ualberta.arc.mergecwrc.utils;
 
+import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
-import java.util.Vector;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  *
@@ -10,19 +11,20 @@ import java.util.Vector;
  */
 public class ScoringUtil {
 
-    private static int minimum(int a, int b, int c) {
+    /*private static int minimum(int a, int b, int c) {
         return Math.min(Math.min(a, b), c);
-    }
+    }*/
     
     public static float computeLevenshteinPercent(CharSequence str1,
             CharSequence str2){
-        int distance = Math.abs(computeLevenshteinDistance(str1, str2));
+        int distance = StringUtils.getLevenshteinDistance(str1, str2);
         
         return 1.0f - (float)(distance << 1)/(float)(str1.length() + str2.length());
     }
 
-    public static int computeLevenshteinDistance(CharSequence str1,
+    /*public static int computeLevenshteinDistance(CharSequence str1,
             CharSequence str2) {
+        
         int[][] distance = new int[str1.length() + 1][str2.length() + 1];
 
         for (int i = 0; i <= str1.length(); i++) {
@@ -44,10 +46,10 @@ public class ScoringUtil {
         }
 
         return distance[str1.length()][str2.length()];
-    }
+    }*/
 
     private static Integer[] arrayKeys(String input, char value) {
-        List<Integer> result = new Vector<Integer>();
+        List<Integer> result = new ArrayList<Integer>(input.length());
 
         for (int index = 0; index < input.length(); ++index) {
             if (input.charAt(index) == value) {

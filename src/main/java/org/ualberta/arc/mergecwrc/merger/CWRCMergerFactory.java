@@ -1,14 +1,12 @@
 package org.ualberta.arc.mergecwrc.merger;
 
 import java.io.InputStream;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.ArrayList;
 import org.ualberta.arc.mergecwrc.io.CWRCDataSource;
 import java.util.Collection;
-import java.util.concurrent.ArrayBlockingQueue;
-import java.util.concurrent.BlockingQueue;
-import java.util.concurrent.ThreadPoolExecutor;
-import java.util.concurrent.TimeUnit;
+import java.util.List;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import org.ualberta.arc.mergecwrc.CWRCException;
 import org.ualberta.arc.mergecwrc.MergeReport;
 import org.ualberta.arc.mergecwrc.merger.custom.AuthorSimpleDifMerger;
@@ -31,7 +29,6 @@ public class CWRCMergerFactory {
     private boolean autoMerge;
 
     public static enum MergeType {
-
         AUTHOR,
         TITLE,
         ORGANIZATION
@@ -95,21 +92,67 @@ public class CWRCMergerFactory {
 
         System.out.println("Flushing all elements to the main document.");
         merger.flushNodes(mainSrc);
+        
+        System.gc();
     }
 
     private class ReaderThread extends Thread {
+        private NodeList entities;
+        private CWRCDataSource mainSrc;
+        private int maxThreads;
+        private List<Thread> threads;
+        
+        public ReaderThread(NodeList entities, CWRCDataSource mainSrc, int maxThreads) {
+            this.entities = entities;
+            this.mainSrc = mainSrc;
+            this.maxThreads = maxThreads;
+            
+            threads = new ArrayList<Thread>(maxThreads);
+        }
+        
+        public void threadComplete(Thread thread){
+            this.threads.remove(thread);
+        }
+
+        @Override
+        public void run() {
+            try {
+                for (int index = 0; index < entities.getLength(); ++index) {
+                    MergeThread thread = new MergeThread(mainSrc, (Element) entities.item(index), autoMerge, this);
+
+                    while(threads.size() >= maxThreads){
+                        Thread.sleep(100l);
+                    }
+                    
+                    threads.add(thread);
+                    thread.start();
+                }
+            } catch (InterruptedException ex) {
+                Logger.getLogger(CWRCMergerFactory.class.getName()).log(Level.SEVERE, null, ex);
+            } finally {
+                threads.clear();
+                this.threads = null;
+                this.entities = null;
+                this.mainSrc = null;
+            }
+        }
+    }
+    /*private class ReaderThread extends Thread {
 
         private NodeList entities;
         private CWRCDataSource mainSrc;
         private ThreadPoolExecutor pool;
         private int maxBlockingSize;
         private BlockingQueue<Runnable> blockingQueue;
-
-        public ReaderThread(NodeList entities, CWRCDataSource mainSrc, int maxThreads) {
-            this.maxBlockingSize = maxThreads << 3;
-           this. blockingQueue = new ArrayBlockingQueue<Runnable>(this.maxBlockingSize);
-            this.pool = new ThreadPoolExecutor(maxThreads, maxThreads, 7l, TimeUnit.DAYS, blockingQueue);
+        private int index = 0;
         
+        public ReaderThread(NodeList entities, CWRCDataSource mainSrc, int maxThreads) {
+            this.maxBlockingSize = maxThreads;
+            this.blockingQueue = new ArrayBlockingQueue<Runnable>(this.maxBlockingSize);
+            this.pool = new ThreadPoolExecutor(1, maxThreads, 5l, TimeUnit.MINUTES, blockingQueue);
+            this.pool.prestartCoreThread();
+            
+
             this.entities = entities;
             this.mainSrc = mainSrc;
         }
@@ -117,34 +160,43 @@ public class CWRCMergerFactory {
         @Override
         public void run() {
             try {
-                for(int index = 0; index < entities.getLength(); ++index){
-                    MergeThread thread = new MergeThread(mainSrc, (Element)entities.item(index), autoMerge);
+                for (index = 0; index < entities.getLength(); ++index) {
+                    MergeThread thread = new MergeThread(mainSrc, (Element) entities.item(index), autoMerge);
                     
-                    while(blockingQueue.size() >= this.maxBlockingSize){
-                        //System.err.println("Blocked, waiting " + index);
+                    while(pool.getQueue().remainingCapacity() < 1){
+                        Thread.sleep(100l);
                     }
                     
                     pool.execute(thread);
                 }
-                
+
                 pool.shutdown();
                 pool.awaitTermination(7, TimeUnit.DAYS);
             } catch (InterruptedException ex) {
                 Logger.getLogger(CWRCMergerFactory.class.getName()).log(Level.SEVERE, null, ex);
+            } finally {
+                this.blockingQueue.clear();
+                
+                this.blockingQueue = null;
+                this.pool = null;
+                this.entities = null;
+                this.mainSrc = null;
             }
         }
-    }
+    }*/
 
-    private class MergeThread implements Runnable {
+    private class MergeThread extends Thread {
 
         private Element node;
         private CWRCDataSource mainSrc;
         private boolean autoMerge;
+        private ReaderThread reader;
 
-        public MergeThread(CWRCDataSource mainSrc, Element node, boolean autoMerge) {
+        public MergeThread(CWRCDataSource mainSrc, Element node, boolean autoMerge, ReaderThread reader) {
             this.node = node;
             this.mainSrc = mainSrc;
             this.autoMerge = autoMerge;
+            this.reader = reader;
         }
 
         @Override
@@ -153,6 +205,10 @@ public class CWRCMergerFactory {
                 merger.mergeNodes(mainSrc, node, report, autoMerge);
             } catch (CWRCException ex) {
                 ex.printStackTrace();
+            } finally {
+                reader.threadComplete(this);
+                this.node = null;
+                this.mainSrc = null;
             }
 
             return;

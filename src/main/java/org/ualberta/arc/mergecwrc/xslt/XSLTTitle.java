@@ -10,7 +10,6 @@ import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.text.WordUtils;
-import org.apache.xpath.NodeSet;
 import org.ualberta.arc.mergecwrc.CWRCException;
 import org.w3c.dom.Document;
 import org.w3c.dom.Element;
@@ -395,7 +394,7 @@ public class XSLTTitle {
         }
     }
 
-    public static boolean addCEWWOriginInfo(NodeSet list1, NodeSet list2) {
+    public static boolean addCEWWOriginInfo(NodeList list1, NodeList list2) {
         if (list1 == null || list1.getLength() < 1) {
             return false;
         }

@@ -1,7 +1,6 @@
 package org.ualberta.arc.mergecwrc.merger;
 
 import java.io.InputStream;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
@@ -76,6 +75,21 @@ public abstract class CWRCMerger {
     public void setController(MergerController controller) {
         this.controller = controller;
     }
+    
+    // Used to grab only the top layer children
+    protected List<Element> getChildrenOfName(Element element, String name) {
+        List<Element> output = new Vector<Element>();
+
+        for (Node child = element.getFirstChild(); child != null; child = child.getNextSibling()) {
+            if (child.getNodeType() == Node.ELEMENT_NODE
+                    && name.equals(child.getNodeName())) {
+                output.add((Element) child);
+            }
+        }
+
+        return output;
+    }
+    
 
     /**
      * Initializes the Merger.
@@ -147,8 +161,8 @@ public abstract class CWRCMerger {
      * @throws CWRCException 
      */
     public void mergeNodes(CWRCDataSource mainData, Element inputNode, MergeReport report, boolean autoMerge) throws CWRCException {
+        List<QueryResult> result = null;
         try {
-            List<QueryResult> result;
             //synchronized (mainData) {
             result = search(mainData, inputNode);
             cleanUpResults(result, Integer.MIN_VALUE);
@@ -190,6 +204,11 @@ public abstract class CWRCMerger {
             } else {
                 throw ex;
             }
+        }finally{
+            // Perform Data Cleanup
+            if(result.size() > 0){
+                result.clear();
+            }
         }
     }
 
@@ -203,6 +222,7 @@ public abstract class CWRCMerger {
 
         synchronized (docLock) {
             Element entity = (Element) doc.importNode(node, true); // This is done to avoid any null pointer exceptions when printing DOM objects on multiple threads.
+            //node.getOwnerDocument().removeChild(node);
             report.printMerge(entity, selectedMatch);
 
             controller.incrementCurrentEntities();
@@ -226,10 +246,12 @@ public abstract class CWRCMerger {
      */
     public void flushNodes(CWRCDataSource outData) throws CWRCException {
         NodeList children = doc.getDocumentElement().getElementsByTagName(entityNode);
-
-        for (int index = 0; index < children.getLength(); ++index) {
-            outData.appendNode(children.item(index));
+        
+        while(children.getLength() > 0) {            
+            outData.appendNode(children.item(0));
         }
+        
+        children = null;
 
         try {
             doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().newDocument();
@@ -346,23 +368,6 @@ public abstract class CWRCMerger {
         return out;
 
 
-    }
-
-    protected static class CWRCNodeList implements NodeList {
-
-        private List<Node> nodes = new Vector<Node>();
-
-        public Node item(int index) {
-            return nodes.get(index);
-        }
-
-        public int getLength() {
-            return nodes.size();
-        }
-
-        public void addNode(Node node) {
-            nodes.add(node);
-        }
     }
 
     protected Element getSingleChild(String name, Element element) {

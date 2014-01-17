@@ -1,6 +1,7 @@
 package org.ualberta.arc.mergecwrc.io;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import javax.xml.namespace.QName;
 import javax.xml.xpath.XPath;
@@ -9,6 +10,7 @@ import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
 import javax.xml.xpath.XPathVariableResolver;
 import org.ualberta.arc.mergecwrc.CWRCException;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 
@@ -20,6 +22,10 @@ public abstract class CWRCDataSource {
 
     private volatile static XPathFactory factory = null;
     private volatile static Map<String, XPathExpression> compiledExpressions = new HashMap<String, XPathExpression>();
+    
+    protected volatile ChildList children = new ChildList();
+    protected boolean childrenFound = false;
+    protected final Long childrenKey = System.currentTimeMillis();
 
     /**
      * Appends the specified node to the datasource.
@@ -107,6 +113,23 @@ public abstract class CWRCDataSource {
         public Object resolveVariable(QName varName) {
             String key = varName.getLocalPart();
             return variables.get(key);
+        }
+    }
+    
+    protected static class ChildList implements NodeList {
+
+        private List<Element> children;
+
+        public void setChildren(List<Element> children) {
+            this.children = children;
+        }
+
+        public Node item(int i) {
+            return children.get(i);
+        }
+
+        public int getLength() {
+            return children.size();
         }
     }
 }

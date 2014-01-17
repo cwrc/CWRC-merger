@@ -4,9 +4,11 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeMap;
 import org.apache.commons.lang3.StringUtils;
 import org.ualberta.arc.mergecwrc.CWRCException;
 import org.ualberta.arc.mergecwrc.io.CWRCDataSource;
@@ -23,14 +25,19 @@ import org.w3c.dom.NodeList;
  * @author mpm1
  */
 public class AuthorSimpleDifMerger extends CWRCMerger {
-
+    private Comparator<String> comparator = new Comparator<String>(){
+        public int compare(String t, String t1) {
+            return t.compareTo(t1);
+        }
+    };
+    
     public AuthorSimpleDifMerger() throws CWRCException {
         super();
     }
 
     @Override
     public void init(Collection<InputStream> inputFiles) throws CWRCException {
-        System.out.println("Currently we are not performing any initialization functions.");
+        //System.out.println("Currently we are not performing any initialization functions.");
     }
 
     private boolean compareDates(List<Integer> date1, List<Integer> date2) {
@@ -154,8 +161,9 @@ public class AuthorSimpleDifMerger extends CWRCMerger {
         return true;
     }
 
-    private void addResult(Element inputNode, Element matchedNode, Map<Node, QueryResult> results, float percent, int weight, CWRCDataSource mainData) throws CWRCException, NullPointerException {
-        QueryResult result = results.get(matchedNode);
+    private void addResult(Element inputNode, Element matchedNode, Map<String, QueryResult> results, float percent, int weight, CWRCDataSource mainData) throws CWRCException, NullPointerException {
+        String id = matchedNode.hashCode() + "";
+        QueryResult result = results.get(id);
 
         if (result == null) {
             result = new QueryResult(mainData.getId(matchedNode.getParentNode()));
@@ -175,10 +183,10 @@ public class AuthorSimpleDifMerger extends CWRCMerger {
         }
 
         result.setMatch(checkMatch(inputNode, result));
-        results.put(matchedNode, result);
+        results.put(id, result);
     }
 
-    private void searchName(Element entity, NodeList namePart, Element inputNode, Map<Node, QueryResult> results, int multiplier, CWRCDataSource mainData) throws CWRCException {
+    private void searchName(Element entity, NodeList namePart, Element inputNode, Map<String, QueryResult> results, int multiplier, CWRCDataSource mainData) throws CWRCException {
         String surname = null;
         String forename = null;
 
@@ -342,15 +350,15 @@ public class AuthorSimpleDifMerger extends CWRCMerger {
 
     public List<QueryResult> search(CWRCDataSource mainData, Element inputNode, int searchLeft) throws CWRCException {
         try {
-            Map<Node, QueryResult> results = new HashMap<Node, QueryResult>();
+            Map<String, QueryResult> results = new TreeMap<String, QueryResult>();
 
-            NodeList children = inputNode.getElementsByTagName("person");
+            List<Element> children = getChildrenOfName(inputNode, "person");
 
-            if (children.getLength() == 0) {
+            if (children.isEmpty()) {
                 return Collections.EMPTY_LIST;
             }
 
-            Element node = (Element) children.item(0);
+            Element node = children.get(0);
 
             NodeList preferredName = getNodeList("identity/preferredForm/namePart", node, null);
 
@@ -363,10 +371,10 @@ public class AuthorSimpleDifMerger extends CWRCMerger {
 
             for (int i = 0; i < entities.getLength(); ++i) {
                 Element entity = (Element) entities.item(i);
-                children = entity.getElementsByTagName("person");
+                children = getChildrenOfName(entity, "person");
 
-                if (children.getLength() > 0) {
-                    Element person = (Element) children.item(0);
+                if (!children.isEmpty()) {
+                    Element person = children.get(0);
 
                     // First check if there is a preferred name match.
                     if (preferredName != null) {
@@ -388,6 +396,9 @@ public class AuthorSimpleDifMerger extends CWRCMerger {
 
             List output = new ArrayList<QueryResult>(results.size());
             output.addAll(results.values());
+            
+            results.clear();
+            
             return output;
         } catch (NullPointerException ex) {
             System.err.println("Found null pointer exception. Attempting to re-search. ");

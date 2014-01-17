@@ -4,10 +4,10 @@ import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Vector;
+import java.util.TreeMap;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -36,6 +36,11 @@ public class TitleModsMerger extends CWRCMerger {
     private Document recordDoc = null;
     //private int checkValue = 0;
     private MergeReport report = null;
+    private Comparator<String> comparator = new Comparator<String>(){
+        public int compare(String t, String t1) {
+            return t.compareTo(t1);
+        }
+    };
 
     public TitleModsMerger(MergeReport report) throws CWRCException {
         super(MAIN_NODE, ENTITY_NODE);
@@ -140,29 +145,15 @@ public class TitleModsMerger extends CWRCMerger {
         results.put(id, result);
     }
 
-    // Used to grab only the top layer children
-    private List<Element> getChildrenOfName(Element element, String name) {
-        List<Element> output = new Vector<Element>();
-
-        for (Node child = element.getFirstChild(); child != null; child = child.getNextSibling()) {
-            if (child.getNodeType() == Node.ELEMENT_NODE
-                    && name.equals(child.getNodeName())) {
-                output.add((Element) child);
-            }
-        }
-
-        return output;
-    }
-
     @Override
     public List<QueryResult> search(CWRCDataSource mainData, Element inputNode) throws CWRCException {
         try {
-            Map<String, QueryResult> results = new HashMap<String, QueryResult>();
+            Map<String, QueryResult> results = new TreeMap<String, QueryResult>(comparator);
 
             // Use search on each title. Alternatives are matched based on a property
             List<Element> titles = getChildrenOfName(inputNode, "titleInfo");
 
-            if (titles.size() == 0) {
+            if (titles.isEmpty()) {
                 return Collections.EMPTY_LIST;
             }
 
@@ -175,8 +166,8 @@ public class TitleModsMerger extends CWRCMerger {
                 List<Element> children = getChildrenOfName(entity, "titleInfo");
                 //children = ((Element)children.item(0)).getElementsByTagName("title");
 
-                for (int j = 0; j < children.size(); ++j) {
-                    Element checkChild = (Element) children.get(j);
+                while (children.size() > 0) {
+                    Element checkChild = (Element) children.remove(0);
 
                     for (int k = 0; k < titles.size(); ++k) {
                         searchName(checkChild, (Element) titles.get(k), inputNode, results, mainData);
@@ -184,10 +175,12 @@ public class TitleModsMerger extends CWRCMerger {
                 }
             }
 
-            List output = new Vector<QueryResult>(results.size());
+            List output = new ArrayList<QueryResult>(results.size());
             output.addAll(results.values());
+            
+            results.clear();
 
-            if (output.size() > 0) {
+            if (!output.isEmpty()) {
                 recordAllMatches(inputNode, output);
             }
 

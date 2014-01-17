@@ -6,6 +6,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.MalformedURLException;
+import java.util.List;
+import java.util.Vector;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -32,38 +34,63 @@ import org.xml.sax.SAXException;
  *
  * @author mpm1
  */
-public class MODSFile extends CWRCDataSource{
+public class MODSFile extends CWRCDataSource {
+
     private volatile File file;
     private volatile Document doc;
     private volatile Element docElement;
-    
+
     public MODSFile(String fileName) throws CWRCException {
         loadFile(fileName);
         docElement = doc.getDocumentElement();
     }
-    
+
     @Override
-    public void triggerMerge(Node entity, String id){
+    public void triggerMerge(Node entity, String id) {
         // We do not need to do anything in this data source.
     }
-    
+
     @Override
     public void appendNode(Node node) {
         Node entity = doc.adoptNode(node);
         docElement.appendChild(entity);
+
+        childrenFound = false;
     }
-    
+
     @Override
     public NodeList getAllEntities() {
-        return docElement.getElementsByTagName(TitleModsMerger.ENTITY_NODE);
+        if (!childrenFound) {
+            synchronized (childrenKey) {
+                if (!childrenFound) {
+                    List<Element> output = new Vector<Element>();
+
+                    for (Node child = docElement.getFirstChild(); child != null; child = child.getNextSibling()) {
+                        if (child.getNodeType() == Node.ELEMENT_NODE
+                                && TitleModsMerger.ENTITY_NODE.equals(child.getNodeName())) {
+                            output.add((Element) child);
+                        }
+                    }
+                    
+                    this.children.setChildren(output);
+
+                    childrenFound = true;
+                }
+            }
+        }
+
+        return children; // Testing if this works correctly by only grabbing the top layer.
+        //return docElement.getElementsByTagName(TitleModsMerger.ENTITY_NODE);
     }
-    
+
     /**
      * Writes the DOM information back to a file.
      * 
      * @throws CWRCException 
      */
     public void writeFile() throws CWRCException {
+        childrenFound = false;
+        
         try {
             FileOutputStream fileOut = new FileOutputStream(file);
 
@@ -84,6 +111,7 @@ public class MODSFile extends CWRCDataSource{
     }
 
     private void loadFile(String fileName) throws CWRCException {
+        childrenFound = false;
         file = new File(fileName);
 
         if (file.exists()) {

@@ -6,6 +6,8 @@ import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.OutputStreamWriter;
 import java.net.MalformedURLException;
+import java.util.List;
+import java.util.Vector;
 import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.parsers.ParserConfigurationException;
@@ -21,6 +23,7 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import org.ualberta.arc.mergecwrc.CWRCException;
 import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 import org.w3c.dom.Node;
 import org.w3c.dom.NodeList;
 import org.xml.sax.InputSource;
@@ -34,6 +37,7 @@ import org.xml.sax.SAXException;
 public class CWRCFile extends CWRCDataSource{
     private volatile File file;
     private volatile Document doc;
+    private volatile Element docElement;
 
     /**
      * @param fileName The name of the datasource file. If no file exists, then a new one will be created.
@@ -42,6 +46,7 @@ public class CWRCFile extends CWRCDataSource{
      */
     public CWRCFile(String fileName) throws CWRCException {
         loadFile(fileName);
+        docElement = doc.getDocumentElement();
     }
     
     @Override
@@ -51,13 +56,35 @@ public class CWRCFile extends CWRCDataSource{
 
     @Override
     public void appendNode(Node node) {
-        Node entity = ((Document) doc).importNode(node, true);
-        ((Document) doc).getDocumentElement().appendChild(entity);
+        Node entity = doc.adoptNode(node);
+        docElement.appendChild(entity);
+        
+        childrenFound = false;
     }
 
     @Override
     public NodeList getAllEntities() {
-        return doc.getDocumentElement().getElementsByTagName("entity");
+        if (!childrenFound) {
+            synchronized (childrenKey) {
+                if (!childrenFound) {
+                    List<Element> output = new Vector<Element>();
+
+                    for (Node child = docElement.getFirstChild(); child != null; child = child.getNextSibling()) {
+                        if (child.getNodeType() == Node.ELEMENT_NODE
+                                && "entity".equals(child.getNodeName())) {
+                            output.add((Element) child);
+                        }
+                    }
+                    
+                    this.children.setChildren(output);
+
+                    childrenFound = true;
+                }
+            }
+        }
+
+        return children; // Testing if this works correctly by only grabbing the top layer.
+        //return docElement.getElementsByTagName("entity");
     }
 
     /*
@@ -89,6 +116,8 @@ public class CWRCFile extends CWRCDataSource{
      * @throws CWRCException 
      */
     public void writeFile() throws CWRCException {
+        childrenFound = false;
+        
         try {
             FileOutputStream fileOut = new FileOutputStream(file);
 
@@ -109,6 +138,7 @@ public class CWRCFile extends CWRCDataSource{
     }
 
     private void loadFile(String fileName) throws CWRCException {
+        childrenFound = false;
         file = new File(fileName);
 
         if (file.exists()) {
