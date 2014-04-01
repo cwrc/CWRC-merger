@@ -18,7 +18,6 @@ import org.ualberta.arc.mergecwrc.MergeReport;
 import org.ualberta.arc.mergecwrc.io.MODSFile;
 import org.ualberta.arc.mergecwrc.merger.CWRCMergerFactory;
 import org.ualberta.arc.mergecwrc.merger.CWRCMergerFactory.MergeType;
-import org.ualberta.arc.mergecwrc.merger.custom.TitleModsMerger;
 import org.ualberta.arc.mergecwrc.ui.MergerController;
 import org.ualberta.arc.mergecwrc.ui.swing.MergerControllerSwing;
 

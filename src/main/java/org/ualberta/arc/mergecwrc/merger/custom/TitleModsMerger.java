@@ -90,7 +90,7 @@ public class TitleModsMerger extends CWRCMerger {
         float difference = ScoringUtil.computeLevenshteinPercent(checkChildString.toLowerCase(), titleString.toLowerCase());
 
         if (difference > MIN_PERCENT) {
-            Element matchedNode = (Element) title.getParentNode().getParentNode();
+            Element matchedNode = (Element) title.getParentNode();
             if (isMatched((Element) checkChild.getParentNode(), matchedNode)) {
                 addResult((Element) checkChild.getParentNode(), checkChildString, results, difference, checkChildStrength + titleStrength);
             }
@@ -273,6 +273,7 @@ public class TitleModsMerger extends CWRCMerger {
 
         NodeList newMatching = getNodeList("titleInfo/title", newElement, null);
         NodeList mainMatching = getNodeList("titleInfo/title", mainElement, null);
+        NodeList mainTitleInfo = getNodeList("titleInfo", mainElement, null);
         int count = mainMatching.getLength();
         int lastCount = mainMatching.getLength();
 
@@ -298,12 +299,13 @@ public class TitleModsMerger extends CWRCMerger {
                 newTitleInfo.appendChild(title);
 
                 mainElement.appendChild(newTitleInfo);
+                mainElement.insertBefore(((Element) mainTitleInfo.item(0)).getNextSibling(), newTitleInfo);
                 ++count;
             }
         }
 
-        if (count > 1 && lastCount == 1) {
-            ((Element) mainMatching.item(0)).setAttribute("usage", "primary");
+        if (count > 1 && lastCount == 1) {     
+            ((Element) mainTitleInfo.item(0)).setAttribute("usage", "primary");
         }
     }
 
