@@ -14,14 +14,14 @@ public class ConsolidatorControllerConsole {
 
     public static void main(String args[]) throws Exception{
         String config = "<CWRCConsolidation type='MODS'>"
-                + "<CompareField path='/mods/titleInfo[not(@type)]/title' type='LevenshteinPercent' percent='0.8' result='DROP'>"
-                + "<CompareField path='/mods/name/namePart' type='LevenshteinPercent' percent='0.9' result='DROP_IF_EXISTS'/>"
-                + "<CompareField path='/mods/relatedItem[type=\"host\"]/titleInfo/title' type='LevenshteinPercent' percent='0.9' result='DROP_IF_EXISTS'/>"
-                + "<CompareField path='/mods/dateIssues' type='Date' result='RANK'/>"
+                + "<CompareField path='//titleInfo[not(@type)]/title' type='LevenshteinPercent' percent='0.8' result='DROP'>"
+                + "<CompareField path='//name/namePart' type='LevenshteinPercent' percent='0.9' result='DROP_IF_EXISTS'/>"
+                + "<CompareField path='//relatedItem[type=\"host\"]/titleInfo/title' type='LevenshteinPercent' percent='0.9' result='DROP_IF_EXISTS'/>"
+                + "<CompareField path='//dateIssues' type='Date' result='RANK'/>"
                 + "</CompareField>"
                 + "</CWRCConsolidation>";
 
-        InputStream inputFile = new FileInputStream(new File("C:/Users/default.default-PC/Documents/cwrc-conversion/title_build/ceww.MGXML"));
+        InputStream inputFile = new FileInputStream(new File("C:\\Users\\mpm1\\Documents\\cwrc-conversion\\title_build\\ceww.MGXML"));
         File outputFile = null;
 
         CWRCConsolidator consolidator = new CWRCConsolidator(new ByteArrayInputStream(config.getBytes("UTF-8")), inputFile, outputFile);

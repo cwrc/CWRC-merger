@@ -10,14 +10,12 @@ import javax.swing.JApplet;
 import netscape.javascript.JSObject;
 import org.ualberta.arc.mergecwrc.CWRCException;
 import org.ualberta.arc.mergecwrc.MergeReport;
-import org.ualberta.arc.mergecwrc.io.CWRCDataSource;
-import org.ualberta.arc.mergecwrc.io.CWRCJSOutput;
+import org.ualberta.arc.mergecwrc.io.CWRCAPIOutput;
 import org.ualberta.arc.mergecwrc.io.CWRCStringBuilder;
 import org.ualberta.arc.mergecwrc.merger.CWRCMergerFactory;
 import org.ualberta.arc.mergecwrc.merger.CWRCMergerFactory.MergeType;
 import org.ualberta.arc.mergecwrc.ui.MergerController;
 import org.ualberta.arc.mergecwrc.ui.MultipleMatchModel;
-import org.ualberta.arc.mergecwrc.ui.applet.CWRCNetworkThread.CWRCXMLRequest;
 import org.ualberta.arc.mergecwrc.utils.JSONUtil;
 import org.ualberta.arc.mergecwrc.utils.JavaScriptUtil;
 
@@ -47,7 +45,7 @@ public class MergerControllerApplet extends JApplet implements MergerController 
     private int totalComplete = 0;
     private int totalEntities = 0;
     private String mergeChangeFunc = null;
-    
+
     /**
      * Runs the merge process on a selected list of files.
      * 
@@ -79,18 +77,18 @@ public class MergerControllerApplet extends JApplet implements MergerController 
 
         return out.toString();
     }
-    
+
     @Override
     public void stop() {
-        CWRCNetworkThread.getInstance().triggerStop();
-        
+        //CWRCNetworkThread.getInstance().triggerStop();
+
         super.stop();
     }
 
     @Override
     public void init() {
         super.init();
-        
+
         mergeChangeFunc = this.getParameter(PARAM_MERGE_CHANGE_FUNC);
 
         String function = this.getParameter(PARAM_CONSOLE_FUNC);
@@ -100,8 +98,8 @@ public class MergerControllerApplet extends JApplet implements MergerController 
             // Currently we cannot set the system.out functionality. We will work on this later.
             System.setOut(new PrintStream(console));
         }
-        
-        CWRCNetworkThread.getInstance().start();
+
+        //CWRCNetworkThread.getInstance().start();
     }
 
     @Override
@@ -110,7 +108,7 @@ public class MergerControllerApplet extends JApplet implements MergerController 
 
         //Tell the page that the applet has been initialized.
         String function = this.getParameter(PARAM_APPLET_INITIALIZED);
-        
+
         if (function != null) {
             JSObject jso = JSObject.getWindow(this);
             JavaScriptUtil.callFunction(jso, function, new Object[]{});
@@ -196,11 +194,9 @@ public class MergerControllerApplet extends JApplet implements MergerController 
         public void run() {
             try {
                 if (!merging) {
-                    CWRCXMLRequest.reset();
-                    
                     merging = true;
-
                     List<InputStream> inputFiles = new ArrayList<InputStream>(filesToMerge.size());
+
                     for (CWRCStringBuilder builder : filesToMerge.values()) {
                         inputFiles.add(builder.getAsStream());
                     }
@@ -212,7 +208,7 @@ public class MergerControllerApplet extends JApplet implements MergerController 
 
                     inputFiles.clear();
 
-                    CWRCDataSource mainData = new CWRCJSOutput(controller.getParameter(PARAM_CWRC_URL), mergeType);
+                    CWRCAPIOutput mainData = new CWRCAPIOutput(controller.getParameter(PARAM_CWRC_URL), mergeType, controller);
 
                     for (CWRCStringBuilder builder : filesToMerge.values()) {
                         merger.mergeFile(mainData, builder);
@@ -235,6 +231,50 @@ public class MergerControllerApplet extends JApplet implements MergerController 
                 ex.printStackTrace();
             }
         }
+
+        /*@Override
+        public void run() {
+        try {
+        if (!merging) {
+        CWRCXMLRequest.reset();
+        
+        merging = true;
+        
+        List<InputStream> inputFiles = new ArrayList<InputStream>(filesToMerge.size());
+        for (CWRCStringBuilder builder : filesToMerge.values()) {
+        inputFiles.add(builder.getAsStream());
+        }
+        
+        System.out.println("Obtaining merger factory.");
+        MergeReport report = new MergeReport("Applet Merge", new AppletConsole(controller.getParameter(PARAM_REPORT_FUNC), controller));
+        CWRCMergerFactory.setMaxThreads(totalThreads);
+        CWRCMergerFactory merger = CWRCMergerFactory.getFactory(controller, mergeType, report, inputFiles, autoMerge);
+        
+        inputFiles.clear();
+        
+        CWRCDataSource mainData = new CWRCJSOutput(controller.getParameter(PARAM_CWRC_URL), mergeType);
+        
+        for (CWRCStringBuilder builder : filesToMerge.values()) {
+        merger.mergeFile(mainData, builder);
+        }
+        
+        filesToMerge.clear();
+        String function = controller.getParameter(PARAM_MERGE_COMPLETE);
+        
+        totalComplete = 0;
+        totalEntities = 0;
+        
+        if (function != null) {
+        JSObject jso = JSObject.getWindow(controller);
+        JavaScriptUtil.callFunction(jso, function, new Object[]{});
+        }
+        
+        merging = false;
+        }
+        } catch (Exception ex) {
+        ex.printStackTrace();
+        }
+        }*/
     }
 
     /**

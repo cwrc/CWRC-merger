@@ -29,9 +29,19 @@ public class CWRCMergerFactory {
     private boolean autoMerge;
 
     public static enum MergeType {
-        AUTHOR,
-        TITLE,
-        ORGANIZATION
+        AUTHOR("person"),
+        TITLE("title"),
+        ORGANIZATION("organization");
+        
+        private String shortType;
+        
+        MergeType(String val){
+            shortType = val;
+        }
+        
+        public String getShortType(){
+            return shortType;
+        }
     }
 
     public static void setMaxThreads(int threads) {

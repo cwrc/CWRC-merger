@@ -1,3 +1,8 @@
+// Setup tthe cwrc api
+var cwrcApi = new CwrcApi(cwrcServer, $);
+cwrcApi.initializeWithLogin('mark_test', 'P4ssw0rd!');
+
+// Load the Merger
 function CWRCMerger(id, updateFileTable){
     var _this = this;
     
@@ -120,8 +125,6 @@ function launchApplet(cwrcMerger, consoleFunction, reportFunction, mergeChangeFu
     
     deployJava.runApplet(self[cwrcMerger].attributes, parameters, '1.6');
 }
-
-var cwrcServer = "http://192.168.253.128:3000";
 
 function updateFileTable(){
     $("#filesTable tbody tr").each(function(i, row){

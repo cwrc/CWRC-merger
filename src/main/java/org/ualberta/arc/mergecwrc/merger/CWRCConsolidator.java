@@ -14,6 +14,7 @@ import javax.xml.parsers.ParserConfigurationException;
 import javax.xml.parsers.SAXParser;
 import javax.xml.parsers.SAXParserFactory;
 import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
 import javax.xml.xpath.XPathExpression;
 import javax.xml.xpath.XPathExpressionException;
 import javax.xml.xpath.XPathFactory;
@@ -86,9 +87,13 @@ public class CWRCConsolidator extends DefaultHandler{
         
         int count = 0;
         while(!inputElements.isEmpty()){
-            checkElement = inputElements.poll();
+            checkElement = inputElements.pollFirst();
             
-            mainCompareField.compareFields(checkElement, inputElements);
+            List<Element> result = mainCompareField.compareFields(checkElement, inputElements);
+            
+            System.err.println("Total Remove: " + (result.size() + 1));
+            
+            inputElements.removeAll(result);
         }
     }
     
@@ -182,6 +187,7 @@ public class CWRCConsolidator extends DefaultHandler{
         public CompareField(CompareField parent, Attributes attributes) {
             this.path = attributes.getValue(ATTRIBUTE_PATH);
             this.result = Result.valueOf(attributes.getValue(ATTRIBUTE_RESULT));
+            this.parent = parent;
             
             String value = attributes.getValue(ATTRIBUTE_PERCENT);
             if(value != null){
@@ -216,21 +222,44 @@ public class CWRCConsolidator extends DefaultHandler{
         }
         
         protected List<Element> compareFields(Element initialElement, List<Element> inputElements, XPathFactory factory){
+            List<Element> possibleMatched = new ArrayList<Element>();
+            
+            if(this.compareType == null){
+                return possibleMatched;
+            }
+            
             // First find the field.
-            String field = null;
+            String field = null; 
+            XPathExpression expression = null;
             XPath xpath = factory.newXPath();
+            
             try {
-                XPathExpression expression = xpath.compile(path);
+                expression = xpath.compile(path);
                 field = expression.evaluate(initialElement);
-                
-                System.out.println("Field: " + field);
             } catch (XPathExpressionException ex) {
                 Logger.getLogger(CWRCConsolidator.class.getName()).log(Level.SEVERE, null, ex);
             }
 
             // Compare the field
+            for(int i = 0; i < inputElements.size(); ++i){
+                Element element = inputElements.get(i);
+                
+                try {
+                    String compareField = expression.evaluate(element);
+                    
+                    if(percent != null){
+                        Float result = (Float)compareType.compare(field, compareField);
+                        System.err.println("Percent: " + result);
+                        if(result >= percent){
+                            possibleMatched.add(element);
+                        }
+                    }
+                } catch (XPathExpressionException ex) {
+                    Logger.getLogger(CWRCConsolidator.class.getName()).log(Level.SEVERE, null, ex);
+                }
+            }
 
-            return null;
+            return possibleMatched;
         }
     }
 }
