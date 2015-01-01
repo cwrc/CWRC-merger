@@ -63,6 +63,7 @@ public class MergeTitles {
      */
     public void execute() throws IOException{
         MergerController controller = new MergerControllerSwing();
+		// setMaxThreads value should be at least 3
         CWRCMergerFactory.setMaxThreads(3);
         
         SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmmss");
