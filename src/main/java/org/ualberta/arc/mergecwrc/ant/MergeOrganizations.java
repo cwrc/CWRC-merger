@@ -95,5 +95,8 @@ public class MergeOrganizations {
         } catch (CWRCException ex) {
             ex.printStackTrace();
         }
+
+        // MRB: added statement below
+        report.close();
     }
 }
