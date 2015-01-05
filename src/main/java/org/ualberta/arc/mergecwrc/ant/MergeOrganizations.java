@@ -96,7 +96,6 @@ public class MergeOrganizations {
             ex.printStackTrace();
         }
 
-        // MRB: added statement below
         report.close();
     }
 }
