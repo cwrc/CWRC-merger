@@ -21,9 +21,10 @@ public class ConsolidatorControllerConsole {
                 + "</CompareField>"
                 + "</CWRCConsolidation>";
 
-        InputStream inputFile = new FileInputStream(new File("C:\\Users\\mpm1\\Documents\\cwrc-conversion\\title_build\\ceww.MGXML"));
+        // InputStream inputFile = new FileInputStream(new File("C:\\Users\\mpm1\\Documents\\cwrc-conversion\\title_build\\ceww.MGXML"));
+        InputStream inputFile = new FileInputStream(new File("%USERPROFILE%\\Documents\\NetBeansProjects\\CWRC-Entity-Conversions\\title_build\\ceww.mgxml"));
         File outputFile = null;
-
+        
         CWRCConsolidator consolidator = new CWRCConsolidator(new ByteArrayInputStream(config.getBytes("UTF-8")), inputFile, outputFile);
         
         consolidator.consolidate();

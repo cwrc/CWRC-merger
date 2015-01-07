@@ -63,7 +63,7 @@ public class MergeOrganizations {
      */
     public void execute() throws IOException{
         MergerController controller = new MergerControllerSwing();
-		// setMaxThreads value should be at least 3
+		// setMaxThreads value should be 3 for optimal performance
         CWRCMergerFactory.setMaxThreads(3);
         
         SimpleDateFormat df = new SimpleDateFormat("yyyyMMddHHmmss");
