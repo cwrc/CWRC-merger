@@ -74,7 +74,7 @@ public class MergeAuthors {
             List<InputStream> inFiles = getFileInputCollection();
             
             CWRCMergerFactory factory = CWRCMergerFactory.getFactory(controller, MergeType.AUTHOR, report, inFiles, false);
-            CWRCFile mainSrc = new CWRCFile("cwrc.xml");
+            CWRCFile mainSrc = new CWRCFile("author_cwrc.xml");
 
             while (iterator.hasNext()) {
                 try {
